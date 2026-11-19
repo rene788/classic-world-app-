@@ -22,6 +22,7 @@ const S = {
     { id: 'a2', voorraadnr: '2026-013', chassisnr: 'WP0ZZZ96ZPS400123', kenteken: 'AB-12-CD', merk: 'Porsche', model: '911', type: '964 Targa', bouwjaar: 1991, kleur: 'Guards Red', km: 154000, status: 'klaar', locatie: 'showroom', datum_binnen: d0(120), aangemaakt: d0(120) },
     { id: 'a3', voorraadnr: '2026-014', chassisnr: '57795', kenteken: null, merk: 'Porsche', model: '356', type: 'A T1 Coupé', bouwjaar: 1956, kleur: 'Silbermetallic', km: 82000, status: 'binnen', locatie: 'box3', datum_binnen: d0(5), aangemaakt: d0(5) },
     { id: 'a4', voorraadnr: '2026-009', chassisnr: 'ZFFJA09B000012345', kenteken: 'XX-99-YY', merk: 'Ferrari', model: '308', type: 'GTS', bouwjaar: 1979, kleur: 'Rosso Corsa', km: 61000, status: 'verkocht', locatie: null, datum_binnen: d0(200), verkoopdatum: d0(3), bestemming: 'buiten', aangemaakt: d0(200) },
+    { id: 'a6', voorraadnr: '2026-105', chassisnr: null, kenteken: null, merk: 'Porsche', model: '911', type: '3.2 Carrera Coupé', bouwjaar: 1985, kleur: 'Zwart', km: null, status: 'onderweg', locatie: null, locatie_info: 'Transport uit Duitsland', datum_binnen: d0(150), aangemaakt: d0(150) },
     { id: 'a5', voorraadnr: null, chassisnr: 'WDB1130441A000123', kenteken: 'DK-55-12', merk: 'Mercedes-Benz', model: '280 SL', type: 'Pagode', bouwjaar: 1969, kleur: 'Papyrusweiß', km: 99000, status: 'binnen', locatie: 'extern', locatie_info: 'Spuiterij Jansen', datum_binnen: d0(2), aangemaakt: d0(2) },
   ],
   auto_financien: [

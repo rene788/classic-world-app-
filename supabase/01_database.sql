@@ -93,7 +93,7 @@ create table if not exists public.autos (
   bouwjaar       int,
   kleur          text,
   km             int,
-  status         text not null default 'binnen' check (status in ('binnen','werkplaats','klaar','verkocht')),
+  status         text not null default 'binnen' check (status in ('onderweg','binnen','werkplaats','klaar','verkocht')),
   locatie        text check (locatie is null or locatie in ('werkplaats','showroom','loods','extern','box1','box2','box3','box4','box5','box6','box7','box8','box9','box10')),
   locatie_info   text,
   datum_binnen   date default current_date,
@@ -295,6 +295,10 @@ drop trigger if exists gewijzigd on public.klanten;
 create trigger gewijzigd before update on public.klanten for each row execute function public.zet_gewijzigd();
 
 -- ---------- Beveiliging per rij (RLS) ----------
+-- Status 'onderweg' (nov 2026): ook toepassen op een bestaande database
+alter table public.autos drop constraint if exists autos_status_check;
+alter table public.autos add constraint autos_status_check check (status in ('onderweg','binnen','werkplaats','klaar','verkocht'));
+
 alter table public.profielen        enable row level security;
 alter table public.autos            enable row level security;
 alter table public.auto_financien   enable row level security;
