@@ -53,6 +53,32 @@ export const Status = ({ s }) => <span className={`pill st-${s || 'binnen'}`}>{S
 export const Loc = ({ c }) => c.locatie
   ? <span className="loc">{(LOCL[c.locatie] || c.locatie) + (c.locatie === 'extern' && c.locatie_info ? ': ' + c.locatie_info : '')}</span> : null;
 
+// Tijdelijke links (1 uur) ophalen voor bestanden in de afgeschermde opslag
+export function useUrls(paths) {
+  const { act } = useApp();
+  const [urls, setUrls] = useState({});
+  const [tik, setTik] = useState(0);
+  const key = [...new Set(paths.filter(Boolean))].sort().join('|');
+  useEffect(() => { const t = setInterval(() => setTik((n) => n + 1), 50 * 60 * 1000); return () => clearInterval(t); }, []);
+  useEffect(() => {
+    if (!key) return undefined;
+    let live = true;
+    act((db) => db.urls(key.split('|'))).then((m) => { if (live && m && typeof m === 'object') setUrls((o) => ({ ...o, ...m })); });
+    return () => { live = false; };
+  }, [key, act, tik]);
+  return urls;
+}
+
+// Profielfoto van een auto; zonder foto een grijs vlak
+export function CarFoto({ c, url, lg }) {
+  return (
+    <span className={`cfoto${lg ? ' lg' : ''}${url ? '' : ' leeg'}`} aria-hidden={url ? undefined : true}>
+      {url ? <img src={url} alt={`Foto ${[c.merk, c.model, c.type].filter(Boolean).join(' ')}`} loading="lazy" />
+        : <svg viewBox="0 0 24 24" width="40%" height="40%" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 15l2-5a2 2 0 0 1 2-1.4h10A2 2 0 0 1 19 10l2 5v3h-2.5M5.5 18H3v-3m5.5 3h7" /><circle cx="7" cy="18" r="1.6" /><circle cx="17" cy="18" r="1.6" /></svg>}
+    </span>
+  );
+}
+
 export const Empty = ({ title, children }) => <div className="empty"><h2>{title}</h2>{children && <p>{children}</p>}</div>;
 
 // Klein formulier-hulpje: houdt een object met velden bij

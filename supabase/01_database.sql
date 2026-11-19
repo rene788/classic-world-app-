@@ -105,6 +105,8 @@ create table if not exists public.autos (
   aangemaakt_door uuid default auth.uid()
 );
 create index if not exists autos_chassis on public.autos (chassisnr);
+-- Profielfoto: pad naar een kleine JPEG in de opslag (map <auto-id>/profiel/)
+alter table public.autos add column if not exists foto text;
 
 -- Geld per auto: apart, zodat monteurs en meekijkers het nooit binnenkrijgen.
 create table if not exists public.auto_financien (
