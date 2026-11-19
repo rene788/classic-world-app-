@@ -150,5 +150,16 @@ export async function shrink(file, max = 2000) {
     return new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
   } catch { return file; }
 }
+// Kleine JPEG voor de profielfoto in lijsten (max 640 px, meestal 30-60 KB)
+export async function thumb(file, max = 640) {
+  const bmp = await createImageBitmap(file);
+  const s = Math.min(1, max / Math.max(bmp.width, bmp.height));
+  const cv = document.createElement('canvas');
+  cv.width = Math.round(bmp.width * s); cv.height = Math.round(bmp.height * s);
+  cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
+  const blob = await new Promise((r) => cv.toBlob(r, 'image/jpeg', 0.8));
+  if (!blob) throw new Error('Deze foto kon niet worden gelezen.');
+  return new File([blob], 'profiel.jpg', { type: 'image/jpeg' });
+}
 export const safeName = (n) => norm(n.replace(/\.[^.]+$/, '')).replace(/ /g, '-').slice(0, 40) + (n.match(/\.[a-z0-9]+$/i)?.[0].toLowerCase() || '');
 export const rid = () => (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36));

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useApp, Modal, Field, Sel, Plate, Nr, Status, Loc, Empty, useForm } from '../ui';
+import { useApp, Modal, Field, Sel, Plate, Nr, Status, Loc, Empty, useForm, useUrls, CarFoto } from '../ui';
 import { STATUSES, LOCATIES, BESTEMMING, carName, norm, num, int, nextNr, today, eur, daysSince } from '../lib';
 import AutoDossier from './AutoDossier';
 
@@ -18,6 +18,7 @@ export default function Voorraad() {
     .sort((a, b) => String(b.voorraadnr || '').localeCompare(String(a.voorraadnr || ''), 'nl', { numeric: true }) || (b.aangemaakt || '').localeCompare(a.aangemaakt || ''));
 
   const car = nav.carId && d.autoById[nav.carId];
+  const fotoUrls = useUrls(list.map((c) => c.foto));
 
   return (
     <div className={`split${car ? ' has-detail' : ''}`}>
@@ -37,7 +38,8 @@ export default function Voorraad() {
               const matches = geld ? d.matchesForCar(c).filter((m) => !m.informed).length : 0;
               const dg = daysSince(c.datum_binnen);
               return (
-                <button key={c.id} className={`row${car && car.id === c.id ? ' sel' : ''}`} onClick={() => setNav((n) => ({ ...n, carId: c.id }))}>
+                <button key={c.id} className={`row met-foto${car && car.id === c.id ? ' sel' : ''}`} onClick={() => setNav((n) => ({ ...n, carId: c.id }))}>
+                  <CarFoto c={c} url={fotoUrls[c.foto]} />
                   <span className="row-t">{carName(c)}{c.bouwjaar ? <span className="note"> · {c.bouwjaar}</span> : null}</span>
                   <Status s={c.status} />
                   <span className="row-m">

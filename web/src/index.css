@@ -65,6 +65,15 @@ main{padding:18px max(16px,env(safe-area-inset-right,0px)) 48px max(16px,env(saf
 .row.sel{background:var(--accent-soft);border-left-color:var(--accent)}
 .row-t{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .row-m{color:var(--muted);font-size:12.5px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;grid-column:1/-1}
+.row.met-foto{grid-template-columns:72px minmax(0,1fr) auto;align-items:center}
+.row.met-foto .cfoto{grid-row:1/3}
+.row.met-foto .row-m{grid-column:2/-1}
+.cfoto{display:flex;align-items:center;justify-content:center;width:72px;aspect-ratio:4/3;border-radius:6px;overflow:hidden;background:var(--surface-2);border:1px solid var(--line);color:var(--muted);flex:none}
+.cfoto img{width:100%;height:100%;object-fit:cover;display:block}
+.cfoto.leeg{opacity:.75}
+.cfoto.lg{width:168px;border-radius:8px}
+.pfoto{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.pfoto-k{display:flex;gap:6px;align-items:center}
 
 /* knoppen en velden */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--surface);padding:7px 12px;border-radius:7px;cursor:pointer;font-weight:600;font-size:13px;white-space:nowrap;text-decoration:none;color:var(--ink)}

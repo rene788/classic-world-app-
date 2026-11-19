@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useApp, Modal, Sel, Plate, Nr, Status, Loc, DelBtn, Field } from '../ui';
+import { useApp, Modal, Sel, Plate, Nr, Status, Loc, DelBtn, Field, useUrls, CarFoto } from '../ui';
 import {
   STATUSES, PART_ST, KOST_SOORT, ORDER_ST, FASES, BESTEMMING, CHECK_DEFAULT, UITL, carName, fmtD, eur, eur2, km, hrs, sum,
-  daysSince, num, today, carCost, wishText, shrink, safeName, rid,
+  daysSince, num, today, carCost, wishText, shrink, safeName, rid, thumb,
 } from '../lib';
 import { UrenForm } from './MijnWerk';
 import { BestellingForm } from './Bestellingen';
@@ -21,7 +21,8 @@ export default function AutoDossier({ car, onEdit }) {
       <div>
         <button className="btn ghost sm back" onClick={() => setNav((n) => ({ ...n, carId: null }))}>← Terug naar lijst</button>
         <div className="d-head">
-          <div>
+          <ProfielFoto c={c} />
+          <div style={{ flex: '1 1 220px', minWidth: 0 }}>
             <h2 className="d-title">{carName(c)}{c.bouwjaar ? `, ${c.bouwjaar}` : ''}</h2>
             <div className="d-sub"><Nr c={c} lg /><Plate c={c} lg /><Status s={c.status} /><Loc c={c} /></div>
           </div>
@@ -54,6 +55,39 @@ export default function AutoDossier({ car, onEdit }) {
       {geld && <Financien c={c} />}
       {geld && <Afleverlijst c={c} />}
       {geld && <Contacten c={c} />}
+    </div>
+  );
+}
+
+function ProfielFoto({ c }) {
+  const { act, geld } = useApp();
+  const urls = useUrls([c.foto]);
+  const [busy, setBusy] = useState(false);
+  const kies = async (file) => {
+    if (!file) return;
+    setBusy(true);
+    const oud = c.foto;
+    const ok = await act(async (db) => {
+      const klein = await thumb(file);
+      const pad = `${c.id}/profiel/${rid().slice(0, 8)}.jpg`;
+      await db.upload(pad, klein);
+      await db.update('autos', c.id, { foto: pad });
+    }, 'Profielfoto opgeslagen', ['autos']);
+    if (ok && oud) act(async (db) => { try { await db.removeFile(oud); } catch { /* mag blijven staan */ } });
+    setBusy(false);
+  };
+  const weg = () => act(async (db) => { await db.update('autos', c.id, { foto: null }); try { await db.removeFile(c.foto); } catch { /* mag blijven staan */ } }, 'Profielfoto verwijderd', ['autos']);
+  return (
+    <div className="pfoto">
+      <CarFoto c={c} url={urls[c.foto]} lg />
+      {geld && (
+        <div className="pfoto-k">
+          <label className="btn sm filebtn">{busy ? 'Bezig…' : c.foto ? 'Andere foto' : '+ Profielfoto'}
+            <input type="file" accept="image/*" disabled={busy} onChange={(e) => { kies(e.target.files[0]); e.target.value = ''; }} />
+          </label>
+          {c.foto && !busy && <DelBtn x label="Profielfoto verwijderen" onConfirm={weg} />}
+        </div>
+      )}
     </div>
   );
 }
