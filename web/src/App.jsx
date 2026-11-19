@@ -126,7 +126,8 @@ function Werkplaats({ uid, email }) {
     if (c) { openCar(c.id); setQ(''); } else toast('Geen auto gevonden met dit voorraad-, chassis- of kentekennummer.', true);
   };
 
-  const openMatches = zietGeld(rol) ? raw.autos.reduce((n, c) => n + d.matchesForCar(c).filter((m) => !m.informed).length, 0) : 0;
+  // Aantal klanten (niet auto×klant-paren) dat nog over minstens één passende auto geïnformeerd moet worden.
+  const openMatches = zietGeld(rol) ? new Set(raw.autos.flatMap((c) => d.matchesForCar(c).filter((m) => !m.informed).map((m) => m.klant.id))).size : 0;
   const teKeuren = zietGeld(rol) ? raw.uren.filter((h) => h.status === 'ingediend').length : 0;
   const labels = {
     overzicht: ['Overzicht'], voorraad: ['Voorraad', raw.autos.filter((c) => c.status !== 'verkocht').length],
