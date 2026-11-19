@@ -93,11 +93,14 @@ export function wishText(w) {
   const y = w.jaar_van && w.jaar_tot ? ` ${w.jaar_van}–${w.jaar_tot}` : w.jaar_van ? ` vanaf ${w.jaar_van}` : w.jaar_tot ? ` t/m ${w.jaar_tot}` : '';
   return (p || 'Elke auto') + y + (w.max_prijs ? `, max ${eur(w.max_prijs)}` : '');
 }
+// Woorden vergelijken als hele woorden, ook als letters en cijfers aan elkaar staan:
+// "3.0SC" wordt "3 0 sc", "911E" wordt "911 e". Zo matcht "SC" niet meer met "porSChe".
+const tokens = (s) => norm(String(s || '').replace(/([a-z])(\d)/gi, '$1 $2').replace(/(\d)([a-z])/gi, '$1 $2'));
 export function wishMatch(w, c, prijs) {
   if (!w.merk && !w.model && !w.type) return null;
-  const t = ' ' + norm([c.merk, c.model, c.type].join(' ')) + ' ';
+  const t = ' ' + tokens([c.merk, c.model, c.type].join(' ')) + ' ';
   for (const f of ['merk', 'model', 'type']) {
-    if (w[f] && !norm(w[f]).split(' ').filter(Boolean).every((k) => t.includes(k))) return null;
+    if (w[f] && !String(w[f]).split(/\s+/).map(tokens).filter(Boolean).every((k) => t.includes(' ' + k + ' '))) return null;
   }
   if (c.bouwjaar) { if (w.jaar_van && c.bouwjaar < w.jaar_van) return null; if (w.jaar_tot && c.bouwjaar > w.jaar_tot) return null; }
   let over = false;

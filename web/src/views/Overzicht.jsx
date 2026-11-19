@@ -45,7 +45,7 @@ export default function Overzicht() {
       sig.push({ lvl: 'good', klant: k?.id, car: c?.id, t: `${UITL[x.uitkomst] || 'Afspraak'} op ${fmtD(x.afspraak)}`, s: `${k ? k.naam : 'Klant'}${c ? ' · ' + carLabel(c) : ''}` });
     }
   }
-  const om = d.autos.reduce((n, c) => n + d.matchesForCar(c).filter((m) => !m.informed).length, 0);
+  const om = new Set(d.autos.flatMap((c) => d.matchesForCar(c).filter((m) => !m.informed).map((m) => m.klant.id))).size;
   if (om) sig.push({ lvl: 'info', go: () => go('matches'), t: `${om} klant${om > 1 ? 'en' : ''} nog te informeren over een passende auto`, s: 'Bekijk de matches' });
   const order = { bad: 0, warn: 1, good: 2, info: 3 };
   sig.sort((a, b) => order[a.lvl] - order[b.lvl]);
