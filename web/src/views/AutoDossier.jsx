@@ -13,7 +13,7 @@ export default function AutoDossier({ car, onEdit }) {
   const c = car;
   const dg = daysSince(c.datum_binnen);
 
-  const setStatus = (status) => act((db) => db.update('autos', c.id, { status, ...(status === 'verkocht' && !c.verkoopdatum ? { verkoopdatum: today() } : {}) }), 'Status bijgewerkt', ['autos']);
+  const setStatus = (status) => act((db) => db.update('autos', c.id, { status, ...(status === 'verkocht' && !c.verkoopdatum ? { verkoopdatum: today() } : {}), ...(c.status === 'onderweg' && ['binnen', 'werkplaats', 'klaar'].includes(status) ? { datum_binnen: today() } : {}) }), 'Status bijgewerkt', ['autos']);
   const del = async () => { if (await act((db) => db.remove('autos', c.id), 'Auto verwijderd', ['autos'])) setNav((n) => ({ ...n, carId: null })); };
 
   return (
@@ -37,7 +37,9 @@ export default function AutoDossier({ car, onEdit }) {
         <Fact k="Chassisnummer" v={c.chassisnr} mono />
         <Fact k="Kilometerstand" v={km(c.km)} />
         <Fact k="Kleur" v={c.kleur} />
-        <Fact k="Binnen sinds" v={c.datum_binnen ? `${fmtD(c.datum_binnen)}${c.status !== 'verkocht' && dg != null ? ` (${dg} d)` : ''}` : ''} />
+        {c.status === 'onderweg'
+          ? <Fact k="Onderweg" v={c.locatie_info || 'nog niet binnen'} />
+          : <Fact k="Binnen sinds" v={c.datum_binnen ? `${fmtD(c.datum_binnen)}${c.status !== 'verkocht' && dg != null ? ` (${dg} d)` : ''}` : ''} />}
         {c.verkoopdatum && <Fact k="Verkocht op" v={fmtD(c.verkoopdatum)} />}
         {geld && <Fact k="Vraagprijs" v={eur(d.prijsOf(c))} />}
         {c.bestemming && <Fact k="Bestemming" v={Object.fromEntries(BESTEMMING)[c.bestemming]} />}
@@ -186,7 +188,7 @@ function UrenSec({ c }) {
 function Media({ c }) {
   const { d, act, werker, geld, beheerder, uid, toast } = useApp();
   const [urls, setUrls] = useState({});
-  const [fase, setFase] = useState(c.status === 'binnen' ? 'binnenkomst' : c.status === 'klaar' ? 'verkoop' : c.status === 'verkocht' ? 'aflevering' : 'restauratie');
+  const [fase, setFase] = useState(c.status === 'binnen' || c.status === 'onderweg' ? 'binnenkomst' : c.status === 'klaar' ? 'verkoop' : c.status === 'verkocht' ? 'aflevering' : 'restauratie');
   const [busy, setBusy] = useState(0);
   const [big, setBig] = useState(null);
   const list = d.media.filter((m) => m.auto_id === c.id);

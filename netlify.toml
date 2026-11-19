@@ -1,0 +1,8 @@
+# Netlify bouwt de app automatisch vanuit GitHub
+[build]
+  base    = "web"
+  command = "npm ci && npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"

@@ -7,7 +7,8 @@ export default function Overzicht() {
   const [ma, mb] = periodRange('maand');
   const cs = stock.map((c) => carCost(c, d));
   const sold = d.autos.filter((c) => c.status === 'verkocht' && (c.verkoopdatum || '') >= ma && (c.verkoopdatum || '') <= mb).map((c) => carCost(c, d)).filter((x) => x.verkocht);
-  const dagen = stock.map((c) => daysSince(c.datum_binnen)).filter((x) => x != null);
+  const onderweg = stock.filter((c) => c.status === 'onderweg');
+  const dagen = stock.filter((c) => c.status !== 'onderweg').map((c) => daysSince(c.datum_binnen)).filter((x) => x != null);
   const gem = dagen.length ? Math.round(dagen.reduce((a, b) => a + b, 0) / dagen.length) : null;
   const urenMaand = sum(d.uren.filter((h) => h.datum >= ma && h.datum <= mb), (h) => h.uren);
 
@@ -24,7 +25,7 @@ export default function Overzicht() {
       continue;
     }
     if (!c.voorraadnr) sig.push({ lvl: 'warn', car: c.id, t: `Geen voorraadnummer: ${carName(c)}`, s: 'Vul voorraad- en chassisnummer in' });
-    const dg = daysSince(c.datum_binnen);
+    const dg = c.status === 'onderweg' ? null : daysSince(c.datum_binnen);
     if (dg != null && dg > 90) sig.push({ lvl: 'bad', car: c.id, t: `${carLabel(c)} staat al ${dg} dagen op voorraad`, s: 'Overweeg prijs of presentatie te herzien' });
     if (c.status === 'werkplaats') {
       const last = d.uren.filter((h) => h.auto_id === c.id).map((h) => h.datum).sort().pop();
@@ -67,7 +68,7 @@ export default function Overzicht() {
   return (
     <div>
       <dl className="kpis">
-        <div className="kpi"><dt>Op voorraad</dt><dd className="num">{stock.length}</dd><small>{gem != null ? `gemiddeld ${gem} dagen` : "nog geen auto's"}</small></div>
+        <div className="kpi"><dt>Op voorraad</dt><dd className="num">{stock.length}</dd><small>{gem != null ? `gemiddeld ${gem} dagen` : "nog geen auto's"}{onderweg.length ? ` · ${onderweg.length} onderweg` : ''}</small></div>
         <div className="kpi"><dt>Voorraadwaarde</dt><dd className="num">{eur(sum(stock, (c) => d.prijsOf(c))) || '€ 0'}</dd><small>som van vraagprijzen</small></div>
         <div className="kpi"><dt>Geïnvesteerd</dt><dd className="num">{eur(sum(cs, (x) => x.totaal)) || '€ 0'}</dd><small>inkoop, kosten, facturen, arbeid</small></div>
         <div className="kpi"><dt>Verwachte marge</dt><dd className="num">{eur(sum(cs.filter((x) => x.marge != null), (x) => x.marge)) || '€ 0'}</dd><small>bruto, op vraagprijzen</small></div>
@@ -88,12 +89,16 @@ export default function Overzicht() {
           <h2>Locaties <span className="count num">{nVol} van 10 boxen vol</span></h2>
           <div className="legend" style={{ marginBottom: 12 }}>
             {['werkplaats', 'showroom', 'loods', 'extern'].map((k) => <span key={k}>{LOCL[k]} <b className="num">{at(k).length}</b></span>)}
-            {stock.filter((c) => !c.locatie).length > 0 && <span>Onbekend <b className="num">{stock.filter((c) => !c.locatie).length}</b></span>}
+            {onderweg.length > 0 && <span>Onderweg <b className="num">{onderweg.length}</b></span>}
+            {stock.filter((c) => !c.locatie && c.status !== 'onderweg').length > 0 && <span>Onbekend <b className="num">{stock.filter((c) => !c.locatie && c.status !== 'onderweg').length}</b></span>}
           </div>
           <div style={{ marginBottom: 8 }}><Box k="loods" label="Externe loods" /></div>
           <div className="boxes">{Array.from({ length: 10 }, (_, i) => <Box key={i} k={'box' + (i + 1)} label={'Box ' + (i + 1)} />)}</div>
           {at('extern').length > 0 && <div style={{ marginTop: 12 }}>{at('extern').map((c) => (
             <div key={c.id} className="doc"><span className="loc">Extern</span><button className="linkish" onClick={() => openCar(c.id)}>{carLabel(c)}</button><span className="note">{c.locatie_info || 'plek niet ingevuld'}</span></div>
+          ))}</div>}
+          {onderweg.length > 0 && <div style={{ marginTop: 12 }}>{onderweg.map((c) => (
+            <div key={c.id} className="doc"><span className="pill st-onderweg">Onderweg</span><button className="linkish" onClick={() => openCar(c.id)}>{carLabel(c)}</button>{c.locatie_info && <span className="note">{c.locatie_info}</span>}</div>
           ))}</div>}
           <p className="hint" style={{ marginTop: 8 }}>Er passen meerdere auto's in een box. Vink "vol" aan zodra er niets meer bij kan.</p>
         </section>

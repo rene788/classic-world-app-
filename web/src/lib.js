@@ -1,6 +1,6 @@
 // Vaste lijsten, opmaak en rekenregels die overal in de app gebruikt worden.
 
-export const STATUSES = [['binnen', 'Binnengekomen'], ['werkplaats', 'In werkplaats'], ['klaar', 'Klaar voor verkoop'], ['verkocht', 'Verkocht']];
+export const STATUSES = [['onderweg', 'Onderweg'], ['binnen', 'Binnengekomen'], ['werkplaats', 'In werkplaats'], ['klaar', 'Klaar voor verkoop'], ['verkocht', 'Verkocht']];
 export const STL = Object.fromEntries(STATUSES);
 export const LOCATIES = [['werkplaats', 'Werkplaats'], ['showroom', 'Showroom'], ['loods', 'Externe loods'], ['extern', 'Externe locatie'],
   ...Array.from({ length: 10 }, (_, i) => ['box' + (i + 1), 'Garagebox ' + (i + 1)])];

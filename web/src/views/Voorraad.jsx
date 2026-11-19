@@ -45,7 +45,7 @@ export default function Voorraad() {
                     {open > 0 && <span className="chip">{open} open</span>}
                     {matches > 0 && <span className="chip match">{matches} match{matches > 1 ? 'es' : ''}</span>}
                     {geld && d.prijsOf(c) ? <span className="chip">{eur(d.prijsOf(c))}</span> : null}
-                    {c.status !== 'verkocht' && dg != null && dg > 90 && <span className="chip bad">{dg} dagen</span>}
+                    {c.status !== 'verkocht' && c.status !== 'onderweg' && dg != null && dg > 90 && <span className="chip bad">{dg} dagen</span>}
                   </span>
                 </button>
               );
