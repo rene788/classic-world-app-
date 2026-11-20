@@ -107,9 +107,27 @@ export default function Overzicht() {
           {at('extern').length > 0 && <div style={{ marginTop: 12 }}>{at('extern').map((c) => (
             <div key={c.id} className="doc"><span className="loc">Extern</span><button className="linkish" onClick={() => openCar(c.id)}>{carLabel(c)}</button><span className="note">{c.locatie_info || 'plek niet ingevuld'}</span></div>
           ))}</div>}
-          {onderweg.length > 0 && <div style={{ marginTop: 12 }}>{onderweg.map((c) => (
-            <div key={c.id} className="doc"><span className="pill st-onderweg">Onderweg</span><button className="linkish" onClick={() => openCar(c.id)}>{carLabel(c)}</button>{c.locatie_info && <span className="note">{c.locatie_info}</span>}</div>
-          ))}</div>}
+          {onderweg.length > 0 && (
+            <div className="ow">
+              <h3 className="kp-h">Onderweg: kosten tot nu toe</h3>
+              <div className="tw"><table className="ow-t">
+                <thead><tr><th>Auto</th><th className="r">Inkoop</th><th className="r mv">Kosten</th><th className="r">Totaal</th></tr></thead>
+                <tbody>{onderweg.map((c) => { const k = carCost(c, d); return (
+                  <tr key={c.id} className="klik" onClick={() => openCar(c.id)}>
+                    <td><button className="linkish" onClick={(e) => { e.stopPropagation(); openCar(c.id); }}>{carLabel(c)}</button>{c.locatie_info && <div className="note">{c.locatie_info}</div>}</td>
+                    <td className="r num">{k.inkoop ? eur(k.inkoop) : <span className="chip bad">onbekend</span>}</td>
+                    <td className="r num mv">{k.kosten + k.facturen ? eur(k.kosten + k.facturen) : '—'}</td>
+                    <td className="r num"><b>{k.totaal ? eur(k.totaal) : '—'}</b></td>
+                  </tr>
+                ); })}</tbody>
+                <tfoot><tr><td>Totaal onderweg · {onderweg.length} auto{onderweg.length === 1 ? '' : "'s"}</td>
+                  <td className="r num">{eur(sum(onderweg, (c) => carCost(c, d).inkoop)) || '€ 0'}</td>
+                  <td className="r num mv">{eur(sum(onderweg, (c) => { const k = carCost(c, d); return k.kosten + k.facturen; })) || '€ 0'}</td>
+                  <td className="r num"><b>{eur(sum(onderweg, (c) => carCost(c, d).totaal)) || '€ 0'}</b></td></tr></tfoot>
+              </table></div>
+              {onderweg.some((c) => !carCost(c, d).inkoop) && <p className="hint">Bij "onbekend" staat nog geen inkoopprijs. Vul die in via Wijzigen in het dossier.</p>}
+            </div>
+          )}
           <p className="hint" style={{ marginTop: 8 }}>Er passen meerdere auto's in een box. Vink "vol" aan zodra er niets meer bij kan.</p>
         </section>
       </div>

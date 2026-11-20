@@ -201,6 +201,11 @@ button.kpi:hover,button.kpi:focus-visible{border-color:var(--accent);box-shadow:
 .kp-h{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:0 0 6px;font-weight:600}
 .perauto{display:flex;flex-direction:column;gap:10px;align-items:flex-start}
 .perauto .tw{width:100%}
+.ow{margin-top:14px;display:flex;flex-direction:column;gap:6px}
+.ow-t tr.klik{cursor:pointer}
+.ow-t tr.klik:hover td{background:var(--surface-2)}
+.ow-t tfoot td{font-weight:700;border-top:2px solid var(--line);border-bottom:0}
+@media (max-width:640px){.ow-t .mv{display:none}}
 .kt tr.klik{cursor:pointer}
 .kt tr.klik:hover td{background:var(--surface-2)}
 .kt td{vertical-align:middle}
