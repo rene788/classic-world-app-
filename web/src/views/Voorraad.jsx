@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { useApp, Modal, Field, Sel, Plate, Nr, Status, Loc, Empty, useForm, useUrls, CarFoto } from '../ui';
 import { STATUSES, LOCATIES, BESTEMMING, carName, norm, num, int, nextNr, today, eur, daysSince, opVoorraad } from '../lib';
 import AutoDossier from './AutoDossier';
+import KlantDossier from './KlantDossier';
 
 export default function Voorraad() {
-  const { d, nav, setNav, geld } = useApp();
+  const { d, nav, setNav, geld, klant } = useApp();
   const [q, setQ] = useState('');
   const [st, setSt] = useState('actief');
   const [loc, setLoc] = useState('');
@@ -12,8 +13,8 @@ export default function Voorraad() {
 
   const s = norm(q);
   const list = d.autos
-    .filter((c) => st === 'alle' || (st === 'actief' ? opVoorraad(c) : c.status === st))
-    .filter((c) => !loc || c.locatie === loc)
+    .filter((c) => (klant ? klant.statussen.includes(c.status) : st === 'alle' || (st === 'actief' ? opVoorraad(c) : c.status === st)))
+    .filter((c) => klant || !loc || c.locatie === loc)
     .filter((c) => !s || norm([c.voorraadnr, c.chassisnr, c.kenteken, c.merk, c.model, c.type, c.kleur, c.bouwjaar].join(' ')).includes(s))
     .sort((a, b) => String(b.voorraadnr || '').localeCompare(String(a.voorraadnr || ''), 'nl', { numeric: true }) || (b.aangemaakt || '').localeCompare(a.aangemaakt || ''));
 
@@ -26,10 +27,10 @@ export default function Voorraad() {
         <div className="pane-h">
           <input className="in search" placeholder="Zoek op nr, chassis, kenteken, merk…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Zoeken in voorraad" />
           {geld && <button className="btn primary" onClick={() => setForm({})}>+ Auto</button>}
-          <div style={{ display: 'flex', gap: 6, width: '100%' }}>
+          {!klant && <div style={{ display: 'flex', gap: 6, width: '100%' }}>
             <Sel value={st} onChange={setSt} options={[['actief', 'Op voorraad'], ...STATUSES, ['alle', 'Alle auto\'s']]} aria-label="Status" />
             <Sel value={loc} onChange={setLoc} options={LOCATIES} empty="Alle locaties" aria-label="Locatie" />
-          </div>
+          </div>}
         </div>
         <div className="list">
           {!list.length ? <Empty title={d.autos.length ? 'Niets gevonden' : 'Nog geen auto\'s'}>{d.autos.length ? 'Pas de zoekterm of filters aan.' : geld ? 'Voeg de eerste auto toe met de knop + Auto.' : 'Zodra verkoop een auto toevoegt, zie je hem hier.'}</Empty>
@@ -43,11 +44,16 @@ export default function Voorraad() {
                   <span className="row-t">{carName(c)}{c.bouwjaar ? <span className="note"> · {c.bouwjaar}</span> : null}</span>
                   <Status s={c.status} />
                   <span className="row-m">
+                    {klant ? <>
+                      <Plate c={c} />{c.kleur && <span className="chip">{c.kleur}</span>}
+                      {klant.prijs && d.prijsOf(c) ? <span className="chip">{eur(d.prijsOf(c))}</span> : null}
+                    </> : <>
                     <Nr c={c} /><Plate c={c} /><Loc c={c} />
                     {open > 0 && <span className="chip">{open} open</span>}
                     {matches > 0 && <span className="chip match">{matches} match{matches > 1 ? 'es' : ''}</span>}
                     {geld && d.prijsOf(c) ? <span className="chip">{eur(d.prijsOf(c))}</span> : null}
                     {opVoorraad(c) && c.status !== 'onderweg' && dg != null && dg > 90 && <span className="chip bad">{dg} dagen</span>}
+                    </>}
                   </span>
                 </button>
               );
@@ -55,8 +61,9 @@ export default function Voorraad() {
         </div>
       </section>
       <section className="pane detail-pane" aria-label="Dossier">
-        {car ? <AutoDossier car={car} onEdit={() => setForm(car)} />
-          : <Empty title="Kies een auto">Klik links op een auto om het dossier te openen: taken, uren, onderdelen, foto's{geld ? ', kosten en marge' : ''}.</Empty>}
+        {car && klant ? <KlantDossier car={car} />
+          : car ? <AutoDossier car={car} onEdit={() => setForm(car)} />
+          : <Empty title="Kies een auto">{klant ? 'Klik links op een auto voor foto\'s en gegevens.' : `Klik links op een auto om het dossier te openen: taken, uren, onderdelen, foto's${geld ? ', kosten en marge' : ''}.`}</Empty>}
       </section>
       {form && <CarForm car={form.id ? form : null} onClose={() => setForm(null)} />}
     </div>

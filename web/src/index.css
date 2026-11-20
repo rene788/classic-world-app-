@@ -302,3 +302,16 @@ button.kpi:hover,button.kpi:focus-visible{border-color:var(--accent);box-shadow:
 .login-card .sub{color:var(--muted);margin:-8px 0 4px}
 .login-card .err{background:var(--danger-soft);color:var(--danger);border-radius:7px;padding:8px 12px;font-weight:600;font-size:13px}
 .login-card .okmsg{background:var(--ok-soft);color:var(--ok);border-radius:7px;padding:8px 12px;font-weight:600;font-size:13px}
+
+/* klantmodus */
+.km-knop svg{flex:none}
+.km-knop.aan{background:var(--accent);border-color:var(--accent);color:#fff}
+.km-opt{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:8px;cursor:pointer}
+.km-opt.vast{cursor:default;opacity:.8}
+.km-opt input{margin-top:3px}
+.km-opt span{display:flex;flex-direction:column;gap:2px}
+.km-opt small{color:var(--muted);font-size:12px}
+.kd-head{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.kd-head .cfoto.lg{width:min(320px,100%)}
+.kd-prijs{font-family:var(--f-display);font-weight:800;font-size:26px;margin:10px 0 0}
+.kd-gal{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
