@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp, Modal, Sel, Status, Loc, useUrls, CarFoto } from '../ui';
-import { STATUSES, carCost, carName, daysSince, eur, fmtD, hrs, periodRange, sum } from '../lib';
+import { STATUSES, carCost, carName, daysSince, eur, fmtD, hrs, periodRange, sum, opVoorraad, AFGESLOTEN } from '../lib';
 
 // Uitklappanelen achter de getallen op het overzicht.
 // Elk paneel: bovenin een korte uitsplitsing, daaronder een sorteerbare lijst. Klik op een auto = dossier.
@@ -82,7 +82,7 @@ function PerAuto({ n, children }) {
   );
 }
 
-const perStatusGeld = (rows, waarde) => STATUSES.filter(([k]) => k !== 'verkocht')
+const perStatusGeld = (rows, waarde) => STATUSES.filter(([k]) => !AFGESLOTEN.includes(k))
   .map(([k, l]) => { const rs = rows.filter((r) => (r.c.status || 'binnen') === k); return { l, n: rs.length, v: sum(rs, waarde) }; })
   .filter((x) => x.n);
 
@@ -128,8 +128,8 @@ const geld = (n) => (n == null ? '—' : eur(n) || '€ 0');
 
 function Voorraad({ open }) {
   const { d } = useApp();
-  const stock = d.autos.filter((c) => c.status !== 'verkocht');
-  const perStatus = STATUSES.filter(([k]) => k !== 'verkocht').map(([k, l]) => ({ k: l, v: stock.filter((c) => (c.status || 'binnen') === k).length, kleur: `var(--st-${k})` }));
+  const stock = d.autos.filter(opVoorraad);
+  const perStatus = STATUSES.filter(([k]) => !AFGESLOTEN.includes(k)).map(([k, l]) => ({ k: l, v: stock.filter((c) => (c.status || 'binnen') === k).length, kleur: `var(--st-${k})` }));
   const zonderDatum = stock.filter((c) => c.status !== 'onderweg' && !c.datum_binnen).length;
   return (
     <>
@@ -151,7 +151,7 @@ function Voorraad({ open }) {
 
 function Waarde({ open }) {
   const { d } = useApp();
-  const stock = d.autos.filter((c) => c.status !== 'verkocht');
+  const stock = d.autos.filter(opVoorraad);
   const [alleenZonder, setAZ] = useState(false);
   const zonder = stock.filter((c) => d.prijsOf(c) == null);
   const metPrijs = stock.filter((c) => d.prijsOf(c) != null).map((c) => ({ c, p: d.prijsOf(c) }));
@@ -179,7 +179,7 @@ function Waarde({ open }) {
 
 function Investering({ open }) {
   const { d } = useApp();
-  const rows = d.autos.filter((c) => c.status !== 'verkocht').map((c) => ({ c, ...carCost(c, d) }));
+  const rows = d.autos.filter(opVoorraad).map((c) => ({ c, ...carCost(c, d) }));
   const t = (k) => sum(rows, (r) => r[k]);
   const tarief = rows[0]?.tarief || Number(d.settings.uurtarief) || 0;
   const geenInkoop = rows.filter((r) => !r.inkoop).length;
@@ -212,7 +212,7 @@ function Investering({ open }) {
 
 function Marge({ open }) {
   const { d } = useApp();
-  const alle = d.autos.filter((c) => c.status !== 'verkocht').map((c) => ({ c, ...carCost(c, d) }));
+  const alle = d.autos.filter(opVoorraad).map((c) => ({ c, ...carCost(c, d) }));
   const rows = alle.filter((r) => r.marge != null).map((r) => ({ ...r, pct: r.prijs ? r.marge / r.prijs : null }));
   const omzet = sum(rows, (r) => r.prijs), kost = sum(rows, (r) => r.totaal), marge = sum(rows, (r) => r.marge), btw = sum(rows, (r) => r.btw);
   const neg = rows.filter((r) => r.marge < 0).length;

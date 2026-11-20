@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useApp, Modal, Field, Sel, Plate, Nr, Empty } from '../ui';
-import { carLabel, carName, elapsed, fmtD, hrs, sum, today, numDec, periodRange } from '../lib';
+import { carLabel, carName, elapsed, fmtD, hrs, sum, today, numDec, periodRange, opVoorraad } from '../lib';
 
 export default function MijnWerk() {
   const { d, act, uid, me, werker, openCar } = useApp();
@@ -10,7 +10,7 @@ export default function MijnWerk() {
   useEffect(() => { const t = setInterval(() => tick((n) => n + 1), 30000); return () => clearInterval(t); }, []);
 
   const klok = d.klokken.find((k) => k.monteur_id === uid);
-  const actief = d.autos.filter((c) => c.status !== 'verkocht').sort((a, b) => String(a.voorraadnr || '').localeCompare(String(b.voorraadnr || ''), 'nl', { numeric: true }));
+  const actief = d.autos.filter(opVoorraad).sort((a, b) => String(a.voorraadnr || '').localeCompare(String(b.voorraadnr || ''), 'nl', { numeric: true }));
   const [auto, setAuto] = useState('');
   const [oms, setOms] = useState('');
   const [klant, setKlant] = useState(false);
@@ -99,7 +99,7 @@ export default function MijnWerk() {
 // Uren invullen of (beheerder) wijzigen
 export function UrenForm({ carId, onClose, edit }) {
   const { d, act, uid, beheerder } = useApp();
-  const actief = d.autos.filter((c) => c.status !== 'verkocht' || c.id === carId || c.id === edit?.auto_id);
+  const actief = d.autos.filter((c) => opVoorraad(c) || c.id === carId || c.id === edit?.auto_id);
   const [auto, setAuto] = useState(edit?.auto_id ?? carId ?? '');
   const [datum, setDatum] = useState(edit?.datum ?? today());
   const [uren, setUren] = useState(edit ? String(edit.uren).replace('.', ',') : '');

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useApp, Modal, Sel, Plate, Nr, Status, Loc, DelBtn, Field, useUrls, CarFoto } from '../ui';
 import {
   STATUSES, PART_ST, KOST_SOORT, ORDER_ST, FASES, BESTEMMING, CHECK_DEFAULT, UITL, carName, fmtD, eur, eur2, km, hrs, sum,
-  daysSince, num, today, carCost, wishText, shrink, safeName, rid, thumb,
+  daysSince, num, today, carCost, wishText, shrink, safeName, rid, thumb, opVoorraad,
 } from '../lib';
 import { UrenForm } from './MijnWerk';
 import { BestellingForm } from './Bestellingen';
@@ -13,7 +13,8 @@ export default function AutoDossier({ car, onEdit }) {
   const c = car;
   const dg = daysSince(c.datum_binnen);
 
-  const setStatus = (status) => act((db) => db.update('autos', c.id, { status, ...(status === 'verkocht' && !c.verkoopdatum ? { verkoopdatum: today() } : {}), ...(c.status === 'onderweg' && ['binnen', 'werkplaats', 'klaar'].includes(status) ? { datum_binnen: today() } : {}) }), 'Status bijgewerkt', ['autos']);
+  const [annuleer, setAnnuleer] = useState(false);
+  const setStatus = (status) => (status === 'geannuleerd' ? setAnnuleer(true) : act((db) => db.update('autos', c.id, { status, ...(c.status === 'geannuleerd' ? { geannuleerd_op: null, annuleer_reden: null } : {}), ...(status === 'verkocht' && !c.verkoopdatum ? { verkoopdatum: today() } : {}), ...(c.status === 'onderweg' && ['binnen', 'werkplaats', 'klaar'].includes(status) ? { datum_binnen: today() } : {}) }), 'Status bijgewerkt', ['autos']));
   const del = async () => { if (await act((db) => db.remove('autos', c.id), 'Auto verwijderd', ['autos'])) setNav((n) => ({ ...n, carId: null })); };
 
   return (
@@ -40,12 +41,15 @@ export default function AutoDossier({ car, onEdit }) {
         <Fact k="Kleur" v={c.kleur} />
         {c.status === 'onderweg'
           ? <Fact k="Onderweg" v={c.locatie_info || 'nog niet binnen'} />
-          : <Fact k="Binnen sinds" v={c.datum_binnen ? `${fmtD(c.datum_binnen)}${c.status !== 'verkocht' && dg != null ? ` (${dg} d)` : ''}` : ''} />}
+          : <Fact k="Binnen sinds" v={c.datum_binnen ? `${fmtD(c.datum_binnen)}${opVoorraad(c) && dg != null ? ` (${dg} d)` : ''}` : ''} />}
         {c.verkoopdatum && <Fact k="Verkocht op" v={fmtD(c.verkoopdatum)} />}
+        {c.status === 'geannuleerd' && <Fact k="Aankoop geannuleerd" v={`${c.geannuleerd_op ? fmtD(c.geannuleerd_op) : 'datum onbekend'}${c.annuleer_reden ? ` · ${c.annuleer_reden}` : ''}`} />}
         {geld && <Fact k="Vraagprijs" v={eur(d.prijsOf(c))} />}
         {c.bestemming && <Fact k="Bestemming" v={Object.fromEntries(BESTEMMING)[c.bestemming]} />}
       </dl>
       {c.omschrijving && <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{c.omschrijving}</p>}
+      {c.status === 'geannuleerd' && <div className="banner warn" style={{ margin: 0 }}>Deze aankoop is geannuleerd. De auto telt niet meer mee in de voorraad, de voorraadwaarde of de matches. De bedragen staan op het overzicht bij "Geannuleerde aankopen".</div>}
+      {annuleer && <AnnuleerForm c={c} onClose={() => setAnnuleer(false)} />}
 
       {geld && <MatchesSec c={c} />}
       <Taken c={c} />
@@ -56,6 +60,27 @@ export default function AutoDossier({ car, onEdit }) {
       {geld && <Afleverlijst c={c} />}
       {geld && <Contacten c={c} />}
     </div>
+  );
+}
+
+function AnnuleerForm({ c, onClose }) {
+  const { act } = useApp();
+  const [datum, setDatum] = useState(today());
+  const [reden, setReden] = useState('');
+  const [busy, setBusy] = useState(false);
+  const opslaan = async () => {
+    setBusy(true);
+    const ok = await act((db) => db.update('autos', c.id, { status: 'geannuleerd', geannuleerd_op: datum || null, annuleer_reden: reden.trim() || null }), 'Aankoop geannuleerd', ['autos']);
+    setBusy(false);
+    if (ok) onClose();
+  };
+  return (
+    <Modal title="Aankoop annuleren" onClose={onClose}
+      footer={<><button className="btn" onClick={onClose}>Terug</button><button className="btn danger" disabled={busy} onClick={opslaan}>{busy ? 'Opslaan…' : 'Aankoop annuleren'}</button></>}>
+      <p className="note" style={{ margin: 0 }}>{carName(c)}{c.voorraadnr ? ` · #${c.voorraadnr}` : ''} gaat uit de voorraad. De inkoopprijs en gemaakte kosten blijven bewaard en komen op het overzicht bij "Geannuleerde aankopen". Je kunt dit later terugdraaien door de status weer te wijzigen.</p>
+      <Field label="Geannuleerd op"><input className="in" type="date" value={datum} onChange={(e) => setDatum(e.target.value)} /></Field>
+      <Field label="Reden (optioneel)"><input className="in" value={reden} onChange={(e) => setReden(e.target.value)} placeholder="bijv. verkoper trok zich terug, keuring afgekeurd" /></Field>
+    </Modal>
   );
 }
 
@@ -97,7 +122,7 @@ const Fact = ({ k, v, mono }) => <div className="fact"><dt>{k}</dt><dd className
 function MatchesSec({ c }) {
   const { d, act, openKlant } = useApp();
   const ms = d.matchesForCar(c);
-  if (!ms.length || c.status === 'verkocht') return null;
+  if (!ms.length || !opVoorraad(c)) return null;
   const inform = (k) => act((db) => db.insert('contactmomenten', { klant_id: k.id, auto_id: c.id, uitkomst: 'geinformeerd', datum: today() }), 'Gemarkeerd als geïnformeerd', ['contactmomenten']);
   return (
     <section className="sec">

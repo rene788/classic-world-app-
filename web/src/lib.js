@@ -1,6 +1,9 @@
 // Vaste lijsten, opmaak en rekenregels die overal in de app gebruikt worden.
 
-export const STATUSES = [['onderweg', 'Onderweg'], ['binnen', 'Binnengekomen'], ['werkplaats', 'In werkplaats'], ['klaar', 'Klaar voor verkoop'], ['verkocht', 'Verkocht']];
+export const STATUSES = [['onderweg', 'Onderweg'], ['binnen', 'Binnengekomen'], ['werkplaats', 'In werkplaats'], ['klaar', 'Klaar voor verkoop'], ['verkocht', 'Verkocht'], ['geannuleerd', 'Aankoop geannuleerd']];
+// Afgesloten auto's tellen niet meer mee als voorraad
+export const AFGESLOTEN = ['verkocht', 'geannuleerd'];
+export const opVoorraad = (c) => !AFGESLOTEN.includes(c.status);
 export const STL = Object.fromEntries(STATUSES);
 export const LOCATIES = [['werkplaats', 'Werkplaats'], ['showroom', 'Showroom'], ['loods', 'Externe loods'], ['extern', 'Externe locatie'],
   ...Array.from({ length: 10 }, (_, i) => ['box' + (i + 1), 'Garagebox ' + (i + 1)])];

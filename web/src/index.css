@@ -3,7 +3,7 @@
   --accent:#0F5B6E; --accent-soft:#DCEBEF; --accent-ink:#FFFFFF;
   --match:#A86400; --match-soft:#FBEFD9;
   --ok:#2E7D4F; --ok-soft:#DFF1E6; --warn:#A86400; --danger:#B3261E; --danger-soft:#F8E1DF;
-  --st-onderweg:#7A4FA8; --st-binnen:#4A5866; --st-werkplaats:#0F5B6E; --st-klaar:#2E7D4F; --st-verkocht:#7D838A;
+  --st-onderweg:#7A4FA8; --st-binnen:#4A5866; --st-werkplaats:#0F5B6E; --st-klaar:#2E7D4F; --st-verkocht:#7D838A; --st-geannuleerd:#A3412F;
   --plate-y:#F2C31B; --plate-y-ink:#111111; --plate-b:#1C3F94; --plate-b-ink:#FFFFFF;
   --scrim:rgba(10,14,18,.5);
   --shadow:0 1px 2px rgba(20,30,40,.06),0 4px 16px rgba(20,30,40,.06);
@@ -17,7 +17,7 @@
   --accent:#58B4C9; --accent-soft:#17323A; --accent-ink:#0B1A1F;
   --match:#E9AA3C; --match-soft:#3A2A10;
   --ok:#5CC18A; --ok-soft:#15301F; --warn:#E9AA3C; --danger:#F08A80; --danger-soft:#3A1A17;
-  --st-onderweg:#B79BE0; --st-binnen:#9AA8B5; --st-werkplaats:#58B4C9; --st-klaar:#5CC18A; --st-verkocht:#737A82;
+  --st-onderweg:#B79BE0; --st-binnen:#9AA8B5; --st-werkplaats:#58B4C9; --st-klaar:#5CC18A; --st-verkocht:#737A82; --st-geannuleerd:#E39A8A;
   --scrim:rgba(0,0,0,.6); --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.25);
   color-scheme:dark;
 }}
@@ -107,7 +107,7 @@ label.f select.in{width:100%}
 .nr.none{background:var(--danger-soft);color:var(--danger)}
 .mono{font-family:var(--f-mono);font-size:12.5px}
 .pill{font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;letter-spacing:.02em;white-space:nowrap;border:1px solid currentColor}
-.st-onderweg{color:var(--st-onderweg)}.st-binnen{color:var(--st-binnen)}.st-werkplaats{color:var(--st-werkplaats)}.st-klaar{color:var(--st-klaar)}.st-verkocht{color:var(--st-verkocht)}
+.st-onderweg{color:var(--st-onderweg)}.st-binnen{color:var(--st-binnen)}.st-werkplaats{color:var(--st-werkplaats)}.st-klaar{color:var(--st-klaar)}.st-verkocht{color:var(--st-verkocht)}.st-geannuleerd{color:var(--st-geannuleerd)}
 .chip{font-size:11.5px;padding:1px 7px;border-radius:5px;background:var(--surface-2);color:var(--muted);white-space:nowrap;font-weight:500}
 .chip.match{background:var(--match-soft);color:var(--match);font-weight:700}
 .chip.ok{background:var(--ok-soft);color:var(--ok);font-weight:600}

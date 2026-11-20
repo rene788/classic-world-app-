@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp, Modal, Field, Sel, Plate, Nr, Status, Loc, Empty, useForm, useUrls, CarFoto } from '../ui';
-import { STATUSES, LOCATIES, BESTEMMING, carName, norm, num, int, nextNr, today, eur, daysSince } from '../lib';
+import { STATUSES, LOCATIES, BESTEMMING, carName, norm, num, int, nextNr, today, eur, daysSince, opVoorraad } from '../lib';
 import AutoDossier from './AutoDossier';
 
 export default function Voorraad() {
@@ -12,7 +12,7 @@ export default function Voorraad() {
 
   const s = norm(q);
   const list = d.autos
-    .filter((c) => st === 'alle' || (st === 'actief' ? c.status !== 'verkocht' : c.status === st))
+    .filter((c) => st === 'alle' || (st === 'actief' ? opVoorraad(c) : c.status === st))
     .filter((c) => !loc || c.locatie === loc)
     .filter((c) => !s || norm([c.voorraadnr, c.chassisnr, c.kenteken, c.merk, c.model, c.type, c.kleur, c.bouwjaar].join(' ')).includes(s))
     .sort((a, b) => String(b.voorraadnr || '').localeCompare(String(a.voorraadnr || ''), 'nl', { numeric: true }) || (b.aangemaakt || '').localeCompare(a.aangemaakt || ''));
@@ -47,7 +47,7 @@ export default function Voorraad() {
                     {open > 0 && <span className="chip">{open} open</span>}
                     {matches > 0 && <span className="chip match">{matches} match{matches > 1 ? 'es' : ''}</span>}
                     {geld && d.prijsOf(c) ? <span className="chip">{eur(d.prijsOf(c))}</span> : null}
-                    {c.status !== 'verkocht' && c.status !== 'onderweg' && dg != null && dg > 90 && <span className="chip bad">{dg} dagen</span>}
+                    {opVoorraad(c) && c.status !== 'onderweg' && dg != null && dg > 90 && <span className="chip bad">{dg} dagen</span>}
                   </span>
                 </button>
               );
