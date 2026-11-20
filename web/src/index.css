@@ -192,6 +192,15 @@ button.kpi:hover,button.kpi:focus-visible{border-color:var(--accent);box-shadow:
 .vd-l{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .vd-r .bar{max-width:none}
 .vd-r b{text-align:right;min-width:3ch}
+.som{width:100%;max-width:640px;border-collapse:collapse;font-size:14px;background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.som td{padding:9px 14px;border-bottom:1px solid var(--line);vertical-align:baseline}
+.som td.r{white-space:nowrap;font-weight:600}
+.som tr.sub td{background:var(--surface-2)}
+.som .som-op{display:inline-block;width:1.4em;color:var(--muted);font-weight:700}
+.som tr.som-t td{border-bottom:0;border-top:2px solid var(--ink);font-weight:800;font-size:16px}
+.kp-h{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:0 0 6px;font-weight:600}
+.perauto{display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+.perauto .tw{width:100%}
 .kt tr.klik{cursor:pointer}
 .kt tr.klik:hover td{background:var(--surface-2)}
 .kt td{vertical-align:middle}

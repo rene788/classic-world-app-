@@ -53,6 +53,39 @@ const perMerk = (cars, waarde = () => 1, max = 7) => {
   return [...rij.slice(0, max - 1), { k: 'Overige merken', v: sum(rij.slice(max - 1), (x) => x.v) }];
 };
 
+// Rekensom: regels met bedragen en een totaalregel, zoals op een afrekening
+function Rekensom({ regels, totaal }) {
+  return (
+    <table className="som">
+      <tbody>
+        {regels.map((r) => (
+          <tr key={r.l} className={r.sub ? 'sub' : undefined}>
+            <td>{r.op ? <span className="som-op">{r.op}</span> : null}{r.l}{r.n != null && <span className="note"> · {r.n} auto{r.n === 1 ? '' : "'s"}</span>}{r.uitleg && <span className="note"> · {r.uitleg}</span>}</td>
+            <td className="r num">{geld(r.v)}</td>
+          </tr>
+        ))}
+        <tr className="som-t"><td>{totaal.l}{totaal.uitleg && <span className="note"> · {totaal.uitleg}</span>}</td><td className={`r num${totaal.v < 0 ? ' neg' : ''}`}>{geld(totaal.v)}</td></tr>
+      </tbody>
+    </table>
+  );
+}
+
+// Lijst per auto, standaard ingeklapt zodat het overzicht van de bedragen voorop staat
+function PerAuto({ n, children }) {
+  const [open, setOpen] = useState(false);
+  if (!n) return null;
+  return (
+    <div className="perauto">
+      <button className="btn" aria-expanded={open} onClick={() => setOpen((v) => !v)}>{open ? 'Verberg' : 'Toon'} per auto ({n})</button>
+      {open && children}
+    </div>
+  );
+}
+
+const perStatusGeld = (rows, waarde) => STATUSES.filter(([k]) => k !== 'verkocht')
+  .map(([k, l]) => { const rs = rows.filter((r) => (r.c.status || 'binnen') === k); return { l, n: rs.length, v: sum(rs, waarde) }; })
+  .filter((x) => x.n);
+
 // Sorteerbare tabel met auto's. kolommen: [{ k, l, v(row), toon(row), r (rechts uitlijnen) }]
 function AutoTabel({ rows, kolommen, start, open, leeg = 'Geen auto\'s.' }) {
   const [srt, setSrt] = useState(start);
@@ -121,26 +154,25 @@ function Waarde({ open }) {
   const stock = d.autos.filter((c) => c.status !== 'verkocht');
   const [alleenZonder, setAZ] = useState(false);
   const zonder = stock.filter((c) => d.prijsOf(c) == null);
-  const metPrijs = stock.filter((c) => d.prijsOf(c) != null);
-  const rows = (alleenZonder ? zonder : stock).map((c) => ({ c, p: d.prijsOf(c) }));
+  const metPrijs = stock.filter((c) => d.prijsOf(c) != null).map((c) => ({ c, p: d.prijsOf(c) }));
+  const rows = alleenZonder ? zonder.map((c) => ({ c, p: null })) : stock.map((c) => ({ c, p: d.prijsOf(c) }));
   return (
     <>
-      <div className="kp-top">
-        <div><h3>Totaal</h3><p className="kp-big num">{geld(sum(metPrijs, (c) => d.prijsOf(c)))}</p>
-          <p className="note">{metPrijs.length} auto's met vraagprijs, gemiddeld {geld(metPrijs.length ? sum(metPrijs, (c) => d.prijsOf(c)) / metPrijs.length : null)}</p></div>
-        <div><h3>Per merk</h3><Verdeling items={perMerk(metPrijs, (c) => d.prijsOf(c), 6)} fmt={eur} /></div>
-      </div>
+      <Rekensom regels={perStatusGeld(metPrijs, (r) => r.p)}
+        totaal={{ l: 'Totaal voorraadwaarde', v: sum(metPrijs, (r) => r.p), uitleg: `som van ${metPrijs.length} vraagprijzen` }} />
       {zonder.length > 0 && (
         <div className="banner warn kp-ban">
-          <span><b>{zonder.length} auto's hebben geen vraagprijs</b> en tellen niet mee in de voorraadwaarde.</span>
+          <span><b>{zonder.length} auto's hebben geen vraagprijs</b> en tellen hierboven niet mee.</span>
           <button className="btn sm" onClick={() => setAZ((v) => !v)}>{alleenZonder ? 'Toon alle auto\'s' : 'Toon alleen deze'}</button>
         </div>
       )}
-      <AutoTabel open={open} rows={rows} start={{ k: 'p', dir: 'desc' }}
-        kolommen={[autoKol,
-          { k: 'status', l: 'Status', mv: true, v: (r) => r.c.status, toon: (r) => <Status s={r.c.status} /> },
-          { k: 'p', l: 'Vraagprijs', r: true, v: (r) => r.p, toon: (r) => (r.p == null ? <span className="chip bad">geen prijs</span> : eur(r.p)) },
-        ]} />
+      <PerAuto n={rows.length}>
+        <AutoTabel open={open} rows={rows} start={{ k: 'p', dir: 'desc' }}
+          kolommen={[autoKol,
+            { k: 'status', l: 'Status', mv: true, v: (r) => r.c.status, toon: (r) => <Status s={r.c.status} /> },
+            { k: 'p', l: 'Vraagprijs', r: true, v: (r) => r.p, toon: (r) => (r.p == null ? <span className="chip bad">geen prijs</span> : eur(r.p)) },
+          ]} />
+      </PerAuto>
     </>
   );
 }
@@ -149,29 +181,31 @@ function Investering({ open }) {
   const { d } = useApp();
   const rows = d.autos.filter((c) => c.status !== 'verkocht').map((c) => ({ c, ...carCost(c, d) }));
   const t = (k) => sum(rows, (r) => r[k]);
-  const delen = [
-    { k: 'Inkoop', v: t('inkoop'), kleur: 'var(--accent)' },
-    { k: 'Kosten (transport e.d.)', v: t('kosten'), kleur: 'var(--warn)' },
-    { k: 'Facturen onderdelen', v: t('facturen'), kleur: 'var(--st-werkplaats)' },
-    { k: 'Arbeid werkplaats', v: t('arbeid'), kleur: 'var(--ok)' },
-  ];
+  const tarief = rows[0]?.tarief || Number(d.settings.uurtarief) || 0;
   const geenInkoop = rows.filter((r) => !r.inkoop).length;
   return (
     <>
-      <div className="kp-top">
-        <div><h3>Totaal</h3><p className="kp-big num">{geld(t('totaal'))}</p>
-          <p className="note">{rows.length} auto's op voorraad{!rows[0]?.tarief ? '. Arbeid telt pas mee als het uurtarief is ingevuld bij Beheer.' : `, arbeid à ${eur(rows[0].tarief)} per uur`}</p></div>
-        <div><h3>Waar zit het in</h3><Verdeling items={delen} fmt={eur} totaal={t('totaal')} /></div>
-      </div>
-      {geenInkoop > 0 && <div className="banner warn">{geenInkoop} auto's hebben geen inkoopprijs. Die staan onderaan.</div>}
-      <AutoTabel open={open} rows={rows} start={{ k: 'totaal', dir: 'desc' }}
-        kolommen={[autoKol,
-          { k: 'inkoop', l: 'Inkoop', r: true, v: (r) => r.inkoop || null, toon: (r) => geld(r.inkoop || null) },
-          { k: 'kosten', l: 'Kosten', r: true, mv: true, v: (r) => r.kosten, toon: (r) => (r.kosten ? eur(r.kosten) : '—') },
-          { k: 'facturen', l: 'Facturen', r: true, mv: true, v: (r) => r.facturen, toon: (r) => (r.facturen ? eur(r.facturen) : '—') },
-          { k: 'arbeid', l: 'Arbeid', r: true, mv: true, v: (r) => r.arbeid, toon: (r) => (r.arbeid ? eur(r.arbeid) : '—') },
-          { k: 'totaal', l: 'Totaal', r: true, v: (r) => r.totaal || null, toon: (r) => <b>{geld(r.totaal || null)}</b> },
-        ]} />
+      <Rekensom
+        regels={[
+          { l: 'Inkoop', v: t('inkoop'), n: rows.length - geenInkoop },
+          { op: '+', l: 'Kosten (transport, keuring e.d.)', v: t('kosten') },
+          { op: '+', l: 'Facturen onderdelen en werk derden', v: t('facturen') },
+          { op: '+', l: 'Arbeid eigen werkplaats', v: t('arbeid'), uitleg: tarief ? `${hrs(t('uren'))} uur à ${eur(tarief)}` : 'uurtarief nog niet ingevuld bij Beheer' },
+        ]}
+        totaal={{ l: 'Totaal geïnvesteerd in voorraad', v: t('totaal') }} />
+      <div><h3 className="kp-h">Verdeeld over de voorraad</h3>
+        <Rekensom regels={perStatusGeld(rows, (r) => r.totaal)} totaal={{ l: 'Totaal', v: t('totaal') }} /></div>
+      {geenInkoop > 0 && <div className="banner warn">{geenInkoop} auto{geenInkoop === 1 ? ' heeft' : "'s hebben"} geen inkoopprijs en tellen voor € 0 mee.</div>}
+      <PerAuto n={rows.length}>
+        <AutoTabel open={open} rows={rows} start={{ k: 'totaal', dir: 'desc' }}
+          kolommen={[autoKol,
+            { k: 'inkoop', l: 'Inkoop', r: true, v: (r) => r.inkoop || null, toon: (r) => geld(r.inkoop || null) },
+            { k: 'kosten', l: 'Kosten', r: true, mv: true, v: (r) => r.kosten, toon: (r) => (r.kosten ? eur(r.kosten) : '—') },
+            { k: 'facturen', l: 'Facturen', r: true, mv: true, v: (r) => r.facturen, toon: (r) => (r.facturen ? eur(r.facturen) : '—') },
+            { k: 'arbeid', l: 'Arbeid', r: true, mv: true, v: (r) => r.arbeid, toon: (r) => (r.arbeid ? eur(r.arbeid) : '—') },
+            { k: 'totaal', l: 'Totaal', r: true, v: (r) => r.totaal || null, toon: (r) => <b>{geld(r.totaal || null)}</b> },
+          ]} />
+      </PerAuto>
     </>
   );
 }
@@ -180,29 +214,30 @@ function Marge({ open }) {
   const { d } = useApp();
   const alle = d.autos.filter((c) => c.status !== 'verkocht').map((c) => ({ c, ...carCost(c, d) }));
   const rows = alle.filter((r) => r.marge != null).map((r) => ({ ...r, pct: r.prijs ? r.marge / r.prijs : null }));
-  const totaal = sum(rows, (r) => r.marge);
-  const omzet = sum(rows, (r) => r.prijs);
-  const neg = rows.filter((r) => r.marge < 0);
-  const laag = rows.filter((r) => r.marge >= 0 && r.pct < 0.1);
+  const omzet = sum(rows, (r) => r.prijs), kost = sum(rows, (r) => r.totaal), marge = sum(rows, (r) => r.marge), btw = sum(rows, (r) => r.btw);
+  const neg = rows.filter((r) => r.marge < 0).length;
   return (
     <>
-      <div className="kp-top">
-        <div><h3>Totaal verwacht</h3><p className="kp-big num">{geld(totaal)}</p>
-          <p className="note">Gemiddeld {pct(omzet ? totaal / omzet : null)} van de vraagprijs, over {rows.length} auto's</p></div>
-        <div><h3>Let op</h3><Verdeling items={[
-          { k: 'Negatieve marge', v: neg.length, kleur: 'var(--danger)' },
-          { k: 'Minder dan 10%', v: laag.length, kleur: 'var(--warn)' },
-          { k: '10% of meer', v: rows.length - neg.length - laag.length, kleur: 'var(--ok)' },
-        ]} /></div>
-      </div>
-      {alle.length > rows.length && <p className="hint">{alle.length - rows.length} auto's zonder vraagprijs staan niet in deze lijst.</p>}
-      <AutoTabel open={open} rows={rows} start={{ k: 'pct', dir: 'asc' }}
-        kolommen={[autoKol,
-          { k: 'prijs', l: 'Vraagprijs', r: true, v: (r) => r.prijs, toon: (r) => eur(r.prijs) },
-          { k: 'totaal', l: 'Geïnvesteerd', r: true, mv: true, v: (r) => r.totaal, toon: (r) => eur(r.totaal) },
-          { k: 'marge', l: 'Marge', r: true, v: (r) => r.marge, toon: (r) => <b className={r.marge < 0 ? 'neg' : undefined}>{eur(r.marge)}</b> },
-          { k: 'pct', l: '%', r: true, v: (r) => r.pct, toon: (r) => <span className={r.marge < 0 ? 'chip bad' : r.pct < 0.1 ? 'chip warn' : undefined}>{pct(r.pct)}</span> },
-        ]} />
+      <Rekensom
+        regels={[
+          { l: 'Vraagprijzen', v: omzet, n: rows.length },
+          { op: '−', l: 'Geïnvesteerd in deze auto\'s', v: kost },
+        ]}
+        totaal={{ l: 'Verwachte marge (bruto)', v: marge, uitleg: omzet ? `${pct(marge / omzet)} van de vraagprijs` : null }} />
+      <Rekensom
+        regels={[{ l: 'Verwachte marge (bruto)', v: marge }, { op: '−', l: 'Btw over de marge (margeregeling, 21/121)', v: btw }]}
+        totaal={{ l: 'Verwachte marge na btw', v: marge - btw }} />
+      {alle.length > rows.length && <p className="hint">{alle.length - rows.length} auto's zonder vraagprijs tellen niet mee.</p>}
+      {neg > 0 && <div className="banner warn">{neg} auto{neg === 1 ? ' heeft' : "'s hebben"} een negatieve marge: de vraagprijs is lager dan wat erin zit.</div>}
+      <PerAuto n={rows.length}>
+        <AutoTabel open={open} rows={rows} start={{ k: 'pct', dir: 'asc' }}
+          kolommen={[autoKol,
+            { k: 'prijs', l: 'Vraagprijs', r: true, v: (r) => r.prijs, toon: (r) => eur(r.prijs) },
+            { k: 'totaal', l: 'Geïnvesteerd', r: true, mv: true, v: (r) => r.totaal, toon: (r) => eur(r.totaal) },
+            { k: 'marge', l: 'Marge', r: true, v: (r) => r.marge, toon: (r) => <b className={r.marge < 0 ? 'neg' : undefined}>{eur(r.marge)}</b> },
+            { k: 'pct', l: '%', r: true, v: (r) => r.pct, toon: (r) => <span className={r.marge < 0 ? 'chip bad' : r.pct < 0.1 ? 'chip warn' : undefined}>{pct(r.pct)}</span> },
+          ]} />
+      </PerAuto>
     </>
   );
 }
@@ -214,24 +249,31 @@ function Verkocht({ open }) {
   const alleVerkocht = d.autos.filter((c) => c.status === 'verkocht');
   const rows = alleVerkocht.filter((c) => c.verkoopdatum && c.verkoopdatum >= a && c.verkoopdatum <= b).map((c) => ({ c, ...carCost(c, d) }));
   const metPrijs = rows.filter((r) => r.verkocht);
+  const omzet = sum(metPrijs, (r) => r.prijs), kost = sum(metPrijs, (r) => r.totaal), marge = sum(metPrijs, (r) => r.marge), btw = sum(metPrijs, (r) => r.btw);
   const zonderDatum = alleVerkocht.filter((c) => !c.verkoopdatum).length;
   return (
     <>
       <div className="kp-bar"><Sel value={per} onChange={setPer} options={PERIODES} aria-label="Periode" /><span className="note">{fmtD(a)} t/m {fmtD(b)}</span></div>
-      <div className="kp-top">
-        <div><h3>Marge</h3><p className="kp-big num">{geld(sum(metPrijs, (r) => r.marge))}</p>
-          <p className="note">{rows.length} verkocht{metPrijs.length ? `, omzet ${eur(sum(metPrijs, (r) => r.prijs))}` : ''}</p></div>
-        <div><h3>Per merk</h3>{rows.length ? <Verdeling items={perMerk(rows.map((r) => r.c))} /> : <p className="note">Nog niets verkocht in deze periode.</p>}</div>
-      </div>
-      {rows.length > metPrijs.length && <div className="banner warn">{rows.length - metPrijs.length} verkochte auto's hebben geen verkoopprijs, dus hun marge is onbekend. Vul die in bij Financiën in het dossier.</div>}
+      <Rekensom
+        regels={[
+          { l: 'Verkoopopbrengst', v: omzet, n: metPrijs.length },
+          { op: '−', l: 'Geïnvesteerd in deze auto\'s', v: kost },
+          { op: '=', l: 'Marge (bruto)', v: marge, sub: true },
+          { op: '−', l: 'Btw over de marge (margeregeling)', v: btw },
+        ]}
+        totaal={{ l: 'Marge na btw', v: marge - btw }} />
+      {rows.length > metPrijs.length && <div className="banner warn">{rows.length - metPrijs.length} verkochte auto{rows.length - metPrijs.length === 1 ? ' heeft' : "'s hebben"} geen verkoopprijs en {rows.length - metPrijs.length === 1 ? 'telt' : 'tellen'} niet mee. Vul die in bij Financiën in het dossier.</div>}
       {zonderDatum > 0 && <p className="hint">{zonderDatum} verkochte auto's uit het archief hebben geen verkoopdatum en vallen buiten elke periode.</p>}
-      <AutoTabel open={open} rows={rows} start={{ k: 'datum', dir: 'desc' }} leeg="Geen verkochte auto's in deze periode."
-        kolommen={[autoKol,
-          { k: 'datum', l: 'Verkocht op', v: (r) => r.c.verkoopdatum, toon: (r) => fmtD(r.c.verkoopdatum) },
-          { k: 'prijs', l: 'Verkoopprijs', r: true, v: (r) => (r.verkocht ? r.prijs : null), toon: (r) => (r.verkocht ? eur(r.prijs) : '—') },
-          { k: 'totaal', l: 'Geïnvesteerd', r: true, mv: true, v: (r) => r.totaal || null, toon: (r) => geld(r.totaal || null) },
-          { k: 'marge', l: 'Marge', r: true, v: (r) => (r.verkocht ? r.marge : null), toon: (r) => (r.verkocht ? <b className={r.marge < 0 ? 'neg' : undefined}>{eur(r.marge)}</b> : '—') },
-        ]} />
+      <PerAuto n={rows.length}>
+        <AutoTabel open={open} rows={rows} start={{ k: 'datum', dir: 'desc' }}
+          kolommen={[autoKol,
+            { k: 'datum', l: 'Verkocht op', mv: true, v: (r) => r.c.verkoopdatum, toon: (r) => fmtD(r.c.verkoopdatum) },
+            { k: 'prijs', l: 'Verkoopprijs', r: true, v: (r) => (r.verkocht ? r.prijs : null), toon: (r) => (r.verkocht ? eur(r.prijs) : '—') },
+            { k: 'totaal', l: 'Geïnvesteerd', r: true, mv: true, v: (r) => r.totaal || null, toon: (r) => geld(r.totaal || null) },
+            { k: 'marge', l: 'Marge', r: true, v: (r) => (r.verkocht ? r.marge : null), toon: (r) => (r.verkocht ? <b className={r.marge < 0 ? 'neg' : undefined}>{eur(r.marge)}</b> : '—') },
+          ]} />
+      </PerAuto>
+      {!rows.length && <p className="note">Geen verkochte auto's in deze periode.</p>}
     </>
   );
 }
