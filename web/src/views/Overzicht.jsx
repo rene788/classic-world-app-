@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import { useApp } from '../ui';
 import KpiPaneel from './OverzichtDetail';
-import { LOCL, UITL, carCost, carLabel, carName, daysSince, eur, fmtD, hrs, periodRange, plusDays, sum, today, opVoorraad } from '../lib';
+import { LOCL, UITL, carCost, carLabel, carName, daysSince, eur, fmtD, hrs, periodRange, plusDays, sum, today, opVoorraad, isCons } from '../lib';
 
 export default function Overzicht() {
   const { d, act, go, openCar, openKlant, beheerder, klant } = useApp();
   const [kpi, setKpi] = useState(null);
-  const stock = d.autos.filter(opVoorraad);
+  const alle = d.autos.filter(opVoorraad); // alles wat fysiek bij ons staat of onderweg is
+  const stock = alle.filter((c) => !isCons(c)); // eigen voorraad
+  const cons = alle.filter(isCons);
+  const consVerd = sum(cons.map((c) => carCost(c, d)), (x) => x.marge);
   const [ma, mb] = periodRange('maand');
   const cs = stock.map((c) => carCost(c, d));
   const sold = d.autos.filter((c) => c.status === 'verkocht' && (c.verkoopdatum || '') >= ma && (c.verkoopdatum || '') <= mb).map((c) => carCost(c, d)).filter((x) => x.verkocht);
-  const onderweg = stock.filter((c) => c.status === 'onderweg');
+  const onderweg = alle.filter((c) => c.status === 'onderweg');
   const geannuleerd = d.autos.filter((c) => c.status === 'geannuleerd').map((c) => ({ c, k: carCost(c, d) })).sort((a, b) => (b.c.geannuleerd_op || '').localeCompare(a.c.geannuleerd_op || ''));
   const dagen = stock.filter((c) => c.status !== 'onderweg').map((c) => daysSince(c.datum_binnen)).filter((x) => x != null);
   const gem = dagen.length ? Math.round(dagen.reduce((a, b) => a + b, 0) / dagen.length) : null;
@@ -26,9 +29,12 @@ export default function Overzicht() {
       const al = d.afleverlijst.filter((x) => x.auto_id === c.id);
       const dn = al.filter((x) => x.klaar).length;
       if (al.length && dn < al.length) sig.push({ lvl: 'warn', car: c.id, t: `Afleverlijst nog niet af: ${carLabel(c)}`, s: `${dn} van ${al.length} punten gedaan` });
+      if (!klant && isCons(c) && !(d.finByAuto[c.id] || {}).cons_afgerekend) sig.push({ lvl: 'bad', car: c.id, t: `Afrekenen met eigenaar: ${carLabel(c)}`, s: 'Consignatie verkocht. Vink "afgerekend" aan in het dossier als het geld is overgemaakt.' });
       continue;
     }
     if (c.status === 'geannuleerd') continue;
+    const ct = isCons(c) && (d.finByAuto[c.id] || {}).cons_tot;
+    if (!klant && ct && ct <= plusDays(14)) sig.push({ lvl: ct < t ? 'bad' : 'warn', car: c.id, t: `Consignatie ${ct < t ? 'verlopen' : 'loopt af'}: ${carLabel(c)}`, s: `Afspraak tot ${fmtD(ct)}. Verlengen of auto teruggeven?` });
     if (!c.voorraadnr) sig.push({ lvl: 'warn', car: c.id, t: `Geen voorraadnummer: ${carName(c)}`, s: 'Vul voorraad- en chassisnummer in' });
     const dg = c.status === 'onderweg' ? null : daysSince(c.datum_binnen);
     if (!klant && dg != null && dg > 90) sig.push({ lvl: 'bad', car: c.id, t: `${carLabel(c)} staat al ${dg} dagen op voorraad`, s: 'Overweeg prijs of presentatie te herzien' });
@@ -55,7 +61,7 @@ export default function Overzicht() {
   const order = { bad: 0, warn: 1, good: 2, info: 3 };
   sig.sort((a, b) => order[a.lvl] - order[b.lvl]);
 
-  const at = (k) => stock.filter((c) => c.locatie === k);
+  const at = (k) => alle.filter((c) => c.locatie === k);
   const nVol = Array.from({ length: 10 }, (_, i) => d.boxen['box' + (i + 1)]).filter(Boolean).length;
   const vol = (k, v) => act((db) => db.upsert('boxen', { locatie: k, vol: v }), null, ['boxen']);
   const short = (c) => (c.voorraadnr ? '#' + c.voorraadnr + ' ' + (c.merk || '') : carName(c));
@@ -79,12 +85,13 @@ export default function Overzicht() {
   return (
     <div>
       <div className="kpis">
-        <Kpi k="voorraad" l="Op voorraad" v={stock.length} s={`${klant ? 'auto\'s' : gem != null ? `gemiddeld ${gem} dagen` : "nog geen auto's"}${onderweg.length ? ` · ${onderweg.length} onderweg` : ''}`} />
+        <Kpi k="voorraad" l="Op voorraad" v={stock.length} s={`${klant ? 'auto\'s' : gem != null ? `gemiddeld ${gem} dagen` : "nog geen auto's"}${onderweg.length ? ` · ${onderweg.length} onderweg` : ''}${cons.length ? ` · + ${cons.length} consignatie` : ''}`} />
  {!klant && <>
         <Kpi k="waarde" l="Voorraadwaarde" v={eur(sum(stock, (c) => d.prijsOf(c))) || '€ 0'} s="som van vraagprijzen" />
         <Kpi k="investering" l="Geïnvesteerd" v={eur(sum(cs, (x) => x.totaal)) || '€ 0'} s="inkoop, kosten, facturen, arbeid" />
         <Kpi k="marge" l="Verwachte marge" v={eur(sum(cs.filter((x) => x.marge != null), (x) => x.marge)) || '€ 0'} s="bruto, op vraagprijzen" />
         <Kpi k="verkocht" l="Marge verkocht deze maand" v={eur(sum(sold, (x) => x.marge)) || '€ 0'} s={`${sold.length} verkocht`} />
+        <Kpi k="consignatie" l="Consignatie" v={cons.length} s={cons.length ? `verwacht resultaat ${eur(consVerd) || '€ 0'}` : "geen auto's in consignatie"} />
         </>}
         <Kpi k="uren" l="Werkuren deze maand" v={hrs(urenMaand)} s="alle medewerkers" />
       </div>
@@ -104,7 +111,7 @@ export default function Overzicht() {
           <div className="legend" style={{ marginBottom: 12 }}>
             {['werkplaats', 'showroom', 'loods', 'extern'].map((k) => <span key={k}>{LOCL[k]} <b className="num">{at(k).length}</b></span>)}
             {onderweg.length > 0 && <span>Onderweg <b className="num">{onderweg.length}</b></span>}
-            {stock.filter((c) => !c.locatie && c.status !== 'onderweg').length > 0 && <span>Onbekend <b className="num">{stock.filter((c) => !c.locatie && c.status !== 'onderweg').length}</b></span>}
+            {alle.filter((c) => !c.locatie && c.status !== 'onderweg').length > 0 && <span>Onbekend <b className="num">{alle.filter((c) => !c.locatie && c.status !== 'onderweg').length}</b></span>}
           </div>
           <div style={{ marginBottom: 8 }}><Box k="loods" label="Externe loods" /></div>
           <div className="boxes">{Array.from({ length: 10 }, (_, i) => <Box key={i} k={'box' + (i + 1)} label={'Box ' + (i + 1)} />)}</div>
@@ -119,7 +126,7 @@ export default function Overzicht() {
                 <tbody>{onderweg.map((c) => { const k = carCost(c, d); return (
                   <tr key={c.id} className="klik" onClick={() => openCar(c.id)}>
                     <td><button className="linkish" onClick={(e) => { e.stopPropagation(); openCar(c.id); }}>{carLabel(c)}</button>{c.locatie_info && <div className="note">{c.locatie_info}</div>}</td>
-                    <td className="r num">{k.inkoop ? eur(k.inkoop) : <span className="chip bad">onbekend</span>}</td>
+                    <td className="r num">{k.cons ? <span className="chip">consignatie</span> : k.inkoop ? eur(k.inkoop) : <span className="chip bad">onbekend</span>}</td>
                     <td className="r num mv">{k.kosten + k.facturen ? eur(k.kosten + k.facturen) : '—'}</td>
                     <td className="r num"><b>{k.totaal ? eur(k.totaal) : '—'}</b></td>
                   </tr>
@@ -129,7 +136,7 @@ export default function Overzicht() {
                   <td className="r num mv">{eur(sum(onderweg, (c) => { const k = carCost(c, d); return k.kosten + k.facturen; })) || '€ 0'}</td>
                   <td className="r num"><b>{eur(sum(onderweg, (c) => carCost(c, d).totaal)) || '€ 0'}</b></td></tr></tfoot>
               </table></div>
-              {onderweg.some((c) => !carCost(c, d).inkoop) && <p className="hint">Bij "onbekend" staat nog geen inkoopprijs. Vul die in via Wijzigen in het dossier.</p>}
+              {onderweg.some((c) => !isCons(c) && !carCost(c, d).inkoop) && <p className="hint">Bij "onbekend" staat nog geen inkoopprijs. Vul die in via Wijzigen in het dossier.</p>}
             </div>
           )}
           <p className="hint" style={{ marginTop: 8 }}>Er passen meerdere auto's in een box. Vink "vol" aan zodra er niets meer bij kan.</p>

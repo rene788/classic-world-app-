@@ -24,9 +24,11 @@ const S = {
     { id: 'a4', voorraadnr: '2026-009', chassisnr: 'ZFFJA09B000012345', kenteken: 'XX-99-YY', merk: 'Ferrari', model: '308', type: 'GTS', bouwjaar: 1979, kleur: 'Rosso Corsa', km: 61000, status: 'verkocht', locatie: null, datum_binnen: d0(200), verkoopdatum: d0(3), bestemming: 'buiten', aangemaakt: d0(200) },
     { id: 'a6', voorraadnr: '2026-105', chassisnr: null, kenteken: null, merk: 'Porsche', model: '911', type: '3.2 Carrera Coupé', bouwjaar: 1985, kleur: 'Zwart', km: null, status: 'onderweg', locatie: null, locatie_info: 'Transport uit Duitsland', datum_binnen: d0(150), aangemaakt: d0(150) },
     { id: 'a7', voorraadnr: '2026-099', chassisnr: '9113100777', kenteken: null, merk: 'Porsche', model: '911', type: 'T Targa', bouwjaar: 1973, kleur: 'Oranje', km: null, status: 'geannuleerd', locatie: null, geannuleerd_op: d0(6), annuleer_reden: 'Verkoper trok zich terug', datum_binnen: null, aangemaakt: d0(30) },
+    { id: 'a8', voorraadnr: '2026-201', soort: 'consignatie', chassisnr: '9119300412', kenteken: 'GZ-31-PR', merk: 'Porsche', model: '911', type: 'SC Targa', bouwjaar: 1979, kleur: 'Grand Prix Weiss', km: 98000, status: 'klaar', locatie: 'showroom', datum_binnen: d0(25), aangemaakt: d0(25) },
     { id: 'a5', voorraadnr: null, chassisnr: 'WDB1130441A000123', kenteken: 'DK-55-12', merk: 'Mercedes-Benz', model: '280 SL', type: 'Pagode', bouwjaar: 1969, kleur: 'Papyrusweiß', km: 99000, status: 'binnen', locatie: 'extern', locatie_info: 'Spuiterij Jansen', datum_binnen: d0(2), aangemaakt: d0(2) },
   ],
   auto_financien: [
+    { auto_id: 'a8', vraagprijs: 64900, regeling: 'marge', cons_eigenaar: 'c1', cons_afspraak: 'provisie_pct', cons_waarde: 8, cons_tot: d0(-10) },
     { auto_id: 'a7', inkoopprijs: 41000, vraagprijs: 52900, regeling: 'marge' },
     { auto_id: 'a1', inkoopprijs: 78000, vraagprijs: 112500, regeling: 'marge' },
     { auto_id: 'a2', inkoopprijs: 64000, vraagprijs: 89500, regeling: 'marge' },

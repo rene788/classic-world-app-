@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useApp, Modal, Field, Sel, Plate, Nr, Empty } from '../ui';
-import { carLabel, carName, elapsed, fmtD, hrs, sum, today, numDec, periodRange, opVoorraad } from '../lib';
+import { carLabel, carName, elapsed, fmtD, hrs, sum, today, numDec, periodRange, opVoorraad, isCons } from '../lib';
 
 export default function MijnWerk() {
   const { d, act, uid, me, werker, openCar } = useApp();
@@ -55,7 +55,7 @@ export default function MijnWerk() {
         </> : <>
           <div style={{ flex: '1 1 260px', display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ fontWeight: 700, fontSize: 16 }}>Klok starten</div>
-            <select className="in" style={{ width: '100%' }} value={auto} onChange={(e) => setAuto(e.target.value)} aria-label="Auto">
+            <select className="in" style={{ width: '100%' }} value={auto} onChange={(e) => { setAuto(e.target.value); setKlant(!!(d.autoById[e.target.value] && isCons(d.autoById[e.target.value]))); }} aria-label="Auto">
               <option value="">Algemeen werk (geen auto)</option>
               {actief.map((c) => <option key={c.id} value={c.id}>{carLabel(c)}</option>)}
             </select>
@@ -104,7 +104,7 @@ export function UrenForm({ carId, onClose, edit }) {
   const [datum, setDatum] = useState(edit?.datum ?? today());
   const [uren, setUren] = useState(edit ? String(edit.uren).replace('.', ',') : '');
   const [oms, setOms] = useState(edit?.omschrijving ?? '');
-  const [klant, setKlant] = useState(edit?.voor_klant ?? false);
+  const [klant, setKlant] = useState(edit?.voor_klant ?? !!(d.autoById[edit?.auto_id ?? carId] && isCons(d.autoById[edit?.auto_id ?? carId])));
   const [mon, setMon] = useState(edit?.monteur_id ?? uid);
   const werkers = d.profielen.filter((p) => ['beheerder', 'verkoop', 'monteur'].includes(p.rol));
   const u = numDec(uren);
@@ -123,7 +123,7 @@ export function UrenForm({ carId, onClose, edit }) {
     <Modal title={edit ? 'Uren wijzigen' : 'Uren invullen'} onClose={onClose}
       footer={<><button className="btn" onClick={onClose}>Annuleren</button><button className="btn primary" disabled={!valid} onClick={save}>Opslaan</button></>}>
       <Field label="Auto">
-        <select className="in" style={{ width: '100%' }} value={auto} onChange={(e) => setAuto(e.target.value)}>
+        <select className="in" style={{ width: '100%' }} value={auto} onChange={(e) => { setAuto(e.target.value); if (!edit) setKlant(!!(d.autoById[e.target.value] && isCons(d.autoById[e.target.value]))); }}>
           <option value="">Algemeen werk (geen auto)</option>
           {actief.map((c) => <option key={c.id} value={c.id}>{carLabel(c)}</option>)}
         </select>
