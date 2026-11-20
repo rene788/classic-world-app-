@@ -2,14 +2,14 @@ import { useEffect, useState } from 'react';
 import { useApp, Modal, Sel, Plate, Nr, Status, Loc, DelBtn, Field, useUrls, CarFoto } from '../ui';
 import {
   STATUSES, PART_ST, KOST_SOORT, ORDER_ST, FASES, BESTEMMING, CHECK_DEFAULT, UITL, carName, fmtD, eur, eur2, km, hrs, sum,
-  daysSince, num, today, carCost, wishText, shrink, safeName, rid, thumb, opVoorraad,
+  daysSince, num, today, carCost, wishText, shrink, safeName, rid, thumb, opVoorraad, eurVrij,
 } from '../lib';
 import { UrenForm } from './MijnWerk';
 import { BestellingForm } from './Bestellingen';
 import { ContactForm } from './Klanten';
 
 export default function AutoDossier({ car, onEdit }) {
-  const { d, act, setNav, geld, beheerder } = useApp();
+  const { d, act, setNav, geld, beheerder, klant } = useApp();
   const c = car;
   const dg = daysSince(c.datum_binnen);
 
@@ -41,13 +41,14 @@ export default function AutoDossier({ car, onEdit }) {
         <Fact k="Kleur" v={c.kleur} />
         {c.status === 'onderweg'
           ? <Fact k="Onderweg" v={c.locatie_info || 'nog niet binnen'} />
-          : <Fact k="Binnen sinds" v={c.datum_binnen ? `${fmtD(c.datum_binnen)}${opVoorraad(c) && dg != null ? ` (${dg} d)` : ''}` : ''} />}
+          : !klant && <Fact k="Binnen sinds" v={c.datum_binnen ? `${fmtD(c.datum_binnen)}${opVoorraad(c) && dg != null ? ` (${dg} d)` : ''}` : ''} />}
         {c.verkoopdatum && <Fact k="Verkocht op" v={fmtD(c.verkoopdatum)} />}
         {c.status === 'geannuleerd' && <Fact k="Aankoop geannuleerd" v={`${c.geannuleerd_op ? fmtD(c.geannuleerd_op) : 'datum onbekend'}${c.annuleer_reden ? ` · ${c.annuleer_reden}` : ''}`} />}
         {geld && <Fact k="Vraagprijs" v={eur(d.prijsOf(c))} />}
+        {klant?.prijs && <Fact k="Vraagprijs" v={d.prijsOf(c) != null ? eurVrij(d.prijsOf(c)) : 'Op aanvraag'} />}
         {c.bestemming && <Fact k="Bestemming" v={Object.fromEntries(BESTEMMING)[c.bestemming]} />}
       </dl>
-      {c.omschrijving && <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{c.omschrijving}</p>}
+      {c.omschrijving && !klant && <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{c.omschrijving}</p>}
       {c.status === 'geannuleerd' && <div className="banner warn" style={{ margin: 0 }}>Deze aankoop is geannuleerd. De auto telt niet meer mee in de voorraad, de voorraadwaarde of de matches. De bedragen staan op het overzicht bij "Geannuleerde aankopen".</div>}
       {annuleer && <AnnuleerForm c={c} onClose={() => setAnnuleer(false)} />}
 

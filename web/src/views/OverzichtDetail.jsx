@@ -127,7 +127,7 @@ const geld = (n) => (n == null ? '—' : eur(n) || '€ 0');
 // ---------- de zes panelen ----------
 
 function Voorraad({ open }) {
-  const { d } = useApp();
+  const { d, klant } = useApp();
   const stock = d.autos.filter(opVoorraad);
   const perStatus = STATUSES.filter(([k]) => !AFGESLOTEN.includes(k)).map(([k, l]) => ({ k: l, v: stock.filter((c) => (c.status || 'binnen') === k).length, kleur: `var(--st-${k})` }));
   const zonderDatum = stock.filter((c) => c.status !== 'onderweg' && !c.datum_binnen).length;
@@ -137,14 +137,14 @@ function Voorraad({ open }) {
         <div><h3>Per status</h3><Verdeling items={perStatus} /></div>
         <div><h3>Per merk</h3><Verdeling items={perMerk(stock)} /></div>
       </div>
-      {zonderDatum > 0 && <div className="banner warn">{zonderDatum} auto's hebben geen datum van binnenkomst. Die staan onderaan bij "Dagen". Vul de datum in via Wijzigen in het dossier.</div>}
-      <AutoTabel open={open} start={{ k: 'dagen', dir: 'desc' }}
+      {zonderDatum > 0 && !klant && <div className="banner warn">{zonderDatum} auto's hebben geen datum van binnenkomst. Die staan onderaan bij "Dagen". Vul de datum in via Wijzigen in het dossier.</div>}
+      <AutoTabel open={open} start={klant ? { k: 'auto', dir: 'asc' } : { k: 'dagen', dir: 'desc' }}
         rows={stock.map((c) => ({ c, dagen: c.status === 'onderweg' ? null : daysSince(c.datum_binnen) }))}
         kolommen={[autoKol,
           { k: 'status', l: 'Status', mv: true, v: (r) => r.c.status, toon: (r) => <Status s={r.c.status} /> },
           { k: 'loc', l: 'Locatie', mv: true, v: (r) => r.c.locatie || null, toon: (r) => <Loc c={r.c} /> },
-          { k: 'dagen', l: 'Dagen', r: true, v: (r) => r.dagen, toon: (r) => (r.dagen == null ? '—' : <span className={r.dagen > 90 ? 'chip bad' : undefined}>{r.dagen}</span>) },
-        ]} />
+          !klant && { k: 'dagen', l: 'Dagen', r: true, v: (r) => r.dagen, toon: (r) => (r.dagen == null ? '—' : <span className={r.dagen > 90 ? 'chip bad' : undefined}>{r.dagen}</span>) },
+        ].filter(Boolean)} />
     </>
   );
 }

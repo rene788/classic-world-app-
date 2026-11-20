@@ -36,8 +36,12 @@ export const isoD = (d) => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' +
 export const today = () => isoD(new Date());
 export const plusDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return isoD(d); };
 export const fmtD = (s) => { if (!s) return ''; const [y, m, d] = String(s).slice(0, 10).split('-'); return `${+d}-${+m}-${y}`; };
-export const eur = (n) => (n || n === 0) ? new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n) : '';
-export const eur2 = (n) => (n || n === 0) ? new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(n) : '';
+// In klantmodus worden alle bedragen gemaskeerd; eurVrij is voor de vraagprijs als die getoond mag worden
+let verbergBedragen = false;
+export const zetVerbergBedragen = (v) => { verbergBedragen = !!v; };
+export const eurVrij = (n) => (n || n === 0) ? new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n) : '';
+export const eur = (n) => (verbergBedragen && (n || n === 0) ? '€ •••' : eurVrij(n));
+export const eur2 = (n) => (verbergBedragen && (n || n === 0) ? '€ •••' : (n || n === 0) ? new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(n) : '');
 export const km = (n) => (n || n === 0) ? new Intl.NumberFormat('nl-NL').format(n) + ' km' : '';
 export const hrs = (n) => (Math.round((n || 0) * 100) / 100).toLocaleString('nl-NL', { maximumFractionDigits: 2 });
 export const daysSince = (s) => s ? Math.max(0, Math.round((new Date(today()) - new Date(String(s).slice(0, 10))) / 864e5)) : null;
