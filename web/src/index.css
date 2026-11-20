@@ -317,3 +317,17 @@ button.kpi:hover,button.kpi:focus-visible{border-color:var(--accent);box-shadow:
 .kd-head .cfoto.lg{width:min(320px,100%)}
 .kd-prijs{font-family:var(--f-display);font-weight:800;font-size:26px;margin:10px 0 0}
 .kd-gal{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+
+/* documentatie-link */
+.doclink{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.doclink-f{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:10px;max-width:640px}
+.doclink-f .in{flex:1 1 260px}
+.hint.bad{color:var(--danger);flex-basis:100%}
+.doclink{border:2px dashed transparent;border-radius:8px;padding:2px;margin-left:-4px}
+.doclink.over{border-color:var(--accent);background:var(--accent-soft)}
+.dropvak{display:flex;gap:12px;align-items:center;margin-top:10px;padding:14px 16px;border:2px dashed var(--line);border-radius:10px;color:var(--muted);max-width:560px;transition:border-color .15s,background .15s}
+.dropvak.over{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.dropvak b{display:block;color:var(--ink);font-size:13.5px}
+.dropvak small{display:block;font-size:12px;margin-top:2px}
+.dropvak small.bad{color:var(--danger)}
+.dropvak .linkish{font-size:12px}
