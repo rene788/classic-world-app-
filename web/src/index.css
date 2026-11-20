@@ -317,3 +317,9 @@ button.kpi:hover,button.kpi:focus-visible{border-color:var(--accent);box-shadow:
 .kd-head .cfoto.lg{width:min(320px,100%)}
 .kd-prijs{font-family:var(--f-display);font-weight:800;font-size:26px;margin:10px 0 0}
 .kd-gal{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+
+/* documentatie-link */
+.doclink{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.doclink-f{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:10px;max-width:640px}
+.doclink-f .in{flex:1 1 260px}
+.hint.bad{color:var(--danger);flex-basis:100%}

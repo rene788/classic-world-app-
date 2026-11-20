@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useApp, Modal, Sel, Plate, Nr, Status, Loc, DelBtn, Field, useUrls, CarFoto } from '../ui';
+import { useApp, Modal, Sel, Plate, Nr, Status, Loc, DelBtn, Field, useUrls, CarFoto, DocLink } from '../ui';
 import {
   STATUSES, PART_ST, KOST_SOORT, ORDER_ST, FASES, BESTEMMING, CHECK_DEFAULT, UITL, carName, fmtD, eur, eur2, km, hrs, sum,
   daysSince, num, today, carCost, wishText, shrink, safeName, rid, thumb, opVoorraad, eurVrij,
@@ -26,6 +26,7 @@ export default function AutoDossier({ car, onEdit }) {
           <div style={{ flex: '1 1 220px', minWidth: 0 }}>
             <h2 className="d-title">{carName(c)}{c.bouwjaar ? `, ${c.bouwjaar}` : ''}</h2>
             <div className="d-sub"><Nr c={c} lg /><Plate c={c} lg /><Status s={c.status} /><Loc c={c} /></div>
+            <DocLink c={c} edit={geld} />
           </div>
           <div className="d-actions">
             {geld && <Sel value={c.status} onChange={setStatus} options={STATUSES} aria-label="Status wijzigen" />}

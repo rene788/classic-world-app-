@@ -303,6 +303,8 @@ alter table public.autos add constraint autos_status_check check (status in ('on
 -- Geannuleerde aankopen (nov 2026)
 alter table public.autos add column if not exists geannuleerd_op date;
 alter table public.autos add column if not exists annuleer_reden text;
+-- Link naar de map met documentatie (SharePoint, OneDrive, Google Drive ...)
+alter table public.autos add column if not exists doc_link text;
 
 alter table public.profielen        enable row level security;
 alter table public.autos            enable row level security;

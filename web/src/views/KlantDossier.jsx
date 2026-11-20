@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useApp, Plate, Status, useUrls, CarFoto } from '../ui';
+import { useApp, Plate, Status, useUrls, CarFoto, DocLink } from '../ui';
 import { carName, eurVrij as eur, km } from '../lib';
 
 // Dossier zoals een klant het mag zien: alleen de auto zelf, geen bedragen of interne gegevens
@@ -22,6 +22,7 @@ export default function KlantDossier({ car: c }) {
             <h2 className="d-title">{carName(c)}{c.bouwjaar ? `, ${c.bouwjaar}` : ''}</h2>
             <div className="d-sub"><Status s={c.status} /><Plate c={c} lg /></div>
             {prijs != null && <p className="kd-prijs num">{eur(prijs)}</p>}
+            {c.doc_link && <div style={{ marginTop: 12 }}><DocLink c={c} /></div>}
           </div>
         </div>
       </div>
