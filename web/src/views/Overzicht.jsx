@@ -1,8 +1,11 @@
+import { useState } from 'react';
 import { useApp } from '../ui';
+import KpiPaneel from './OverzichtDetail';
 import { LOCL, UITL, carCost, carLabel, carName, daysSince, eur, fmtD, hrs, periodRange, plusDays, sum, today } from '../lib';
 
 export default function Overzicht() {
   const { d, act, go, openCar, openKlant, beheerder } = useApp();
+  const [kpi, setKpi] = useState(null);
   const stock = d.autos.filter((c) => c.status !== 'verkocht');
   const [ma, mb] = periodRange('maand');
   const cs = stock.map((c) => carCost(c, d));
@@ -65,16 +68,23 @@ export default function Overzicht() {
     );
   };
 
+  const Kpi = ({ k, l, v, s: sub }) => (
+    <button className="kpi" onClick={() => setKpi(k)} aria-haspopup="dialog">
+      <span className="kpi-l">{l}</span><span className="kpi-v num">{v}</span><small>{sub}</small><span className="kpi-m" aria-hidden="true">Bekijk ›</span>
+    </button>
+  );
+
   return (
     <div>
-      <dl className="kpis">
-        <div className="kpi"><dt>Op voorraad</dt><dd className="num">{stock.length}</dd><small>{gem != null ? `gemiddeld ${gem} dagen` : "nog geen auto's"}{onderweg.length ? ` · ${onderweg.length} onderweg` : ''}</small></div>
-        <div className="kpi"><dt>Voorraadwaarde</dt><dd className="num">{eur(sum(stock, (c) => d.prijsOf(c))) || '€ 0'}</dd><small>som van vraagprijzen</small></div>
-        <div className="kpi"><dt>Geïnvesteerd</dt><dd className="num">{eur(sum(cs, (x) => x.totaal)) || '€ 0'}</dd><small>inkoop, kosten, facturen, arbeid</small></div>
-        <div className="kpi"><dt>Verwachte marge</dt><dd className="num">{eur(sum(cs.filter((x) => x.marge != null), (x) => x.marge)) || '€ 0'}</dd><small>bruto, op vraagprijzen</small></div>
-        <div className="kpi"><dt>Marge verkocht deze maand</dt><dd className="num">{eur(sum(sold, (x) => x.marge)) || '€ 0'}</dd><small>{sold.length} verkocht</small></div>
-        <div className="kpi"><dt>Werkuren deze maand</dt><dd className="num">{hrs(urenMaand)}</dd><small>alle medewerkers</small></div>
-      </dl>
+      <div className="kpis">
+        <Kpi k="voorraad" l="Op voorraad" v={stock.length} s={`${gem != null ? `gemiddeld ${gem} dagen` : "nog geen auto's"}${onderweg.length ? ` · ${onderweg.length} onderweg` : ''}`} />
+        <Kpi k="waarde" l="Voorraadwaarde" v={eur(sum(stock, (c) => d.prijsOf(c))) || '€ 0'} s="som van vraagprijzen" />
+        <Kpi k="investering" l="Geïnvesteerd" v={eur(sum(cs, (x) => x.totaal)) || '€ 0'} s="inkoop, kosten, facturen, arbeid" />
+        <Kpi k="marge" l="Verwachte marge" v={eur(sum(cs.filter((x) => x.marge != null), (x) => x.marge)) || '€ 0'} s="bruto, op vraagprijzen" />
+        <Kpi k="verkocht" l="Marge verkocht deze maand" v={eur(sum(sold, (x) => x.marge)) || '€ 0'} s={`${sold.length} verkocht`} />
+        <Kpi k="uren" l="Werkuren deze maand" v={hrs(urenMaand)} s="alle medewerkers" />
+      </div>
+      {kpi && <KpiPaneel soort={kpi} onClose={() => setKpi(null)} />}
       <div className="ov">
         <section className="box">
           <h2>Aandacht nodig <span className="count num">{sig.length}</span></h2>
