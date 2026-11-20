@@ -68,6 +68,8 @@ export function periodRange(p) {
   if (p === 'vorigeweek') { const s = new Date(d); s.setDate(d.getDate() - ((d.getDay() + 6) % 7) - 7); const e = new Date(s); e.setDate(s.getDate() + 6); return [isoD(s), isoD(e)]; }
   if (p === 'maand') return [isoD(new Date(d.getFullYear(), d.getMonth(), 1)), isoD(new Date(d.getFullYear(), d.getMonth() + 1, 0))];
   if (p === 'vorigemaand') return [isoD(new Date(d.getFullYear(), d.getMonth() - 1, 1)), isoD(new Date(d.getFullYear(), d.getMonth(), 0))];
+  if (p === 'kwartaal') { const q = Math.floor(d.getMonth() / 3) * 3; return [isoD(new Date(d.getFullYear(), q, 1)), isoD(new Date(d.getFullYear(), q + 3, 0))]; }
+  if (p === 'jaar') return [`${d.getFullYear()}-01-01`, `${d.getFullYear()}-12-31`];
   return ['0000-01-01', '9999-12-31'];
 }
 

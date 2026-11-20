@@ -1,8 +1,11 @@
+import { useState } from 'react';
 import { useApp } from '../ui';
+import KpiPaneel from './OverzichtDetail';
 import { LOCL, UITL, carCost, carLabel, carName, daysSince, eur, fmtD, hrs, periodRange, plusDays, sum, today } from '../lib';
 
 export default function Overzicht() {
   const { d, act, go, openCar, openKlant, beheerder } = useApp();
+  const [kpi, setKpi] = useState(null);
   const stock = d.autos.filter((c) => c.status !== 'verkocht');
   const [ma, mb] = periodRange('maand');
   const cs = stock.map((c) => carCost(c, d));
@@ -65,16 +68,23 @@ export default function Overzicht() {
     );
   };
 
+  const Kpi = ({ k, l, v, s: sub }) => (
+    <button className="kpi" onClick={() => setKpi(k)} aria-haspopup="dialog">
+      <span className="kpi-l">{l}</span><span className="kpi-v num">{v}</span><small>{sub}</small><span className="kpi-m" aria-hidden="true">Bekijk ›</span>
+    </button>
+  );
+
   return (
     <div>
-      <dl className="kpis">
-        <div className="kpi"><dt>Op voorraad</dt><dd className="num">{stock.length}</dd><small>{gem != null ? `gemiddeld ${gem} dagen` : "nog geen auto's"}{onderweg.length ? ` · ${onderweg.length} onderweg` : ''}</small></div>
-        <div className="kpi"><dt>Voorraadwaarde</dt><dd className="num">{eur(sum(stock, (c) => d.prijsOf(c))) || '€ 0'}</dd><small>som van vraagprijzen</small></div>
-        <div className="kpi"><dt>Geïnvesteerd</dt><dd className="num">{eur(sum(cs, (x) => x.totaal)) || '€ 0'}</dd><small>inkoop, kosten, facturen, arbeid</small></div>
-        <div className="kpi"><dt>Verwachte marge</dt><dd className="num">{eur(sum(cs.filter((x) => x.marge != null), (x) => x.marge)) || '€ 0'}</dd><small>bruto, op vraagprijzen</small></div>
-        <div className="kpi"><dt>Marge verkocht deze maand</dt><dd className="num">{eur(sum(sold, (x) => x.marge)) || '€ 0'}</dd><small>{sold.length} verkocht</small></div>
-        <div className="kpi"><dt>Werkuren deze maand</dt><dd className="num">{hrs(urenMaand)}</dd><small>alle medewerkers</small></div>
-      </dl>
+      <div className="kpis">
+        <Kpi k="voorraad" l="Op voorraad" v={stock.length} s={`${gem != null ? `gemiddeld ${gem} dagen` : "nog geen auto's"}${onderweg.length ? ` · ${onderweg.length} onderweg` : ''}`} />
+        <Kpi k="waarde" l="Voorraadwaarde" v={eur(sum(stock, (c) => d.prijsOf(c))) || '€ 0'} s="som van vraagprijzen" />
+        <Kpi k="investering" l="Geïnvesteerd" v={eur(sum(cs, (x) => x.totaal)) || '€ 0'} s="inkoop, kosten, facturen, arbeid" />
+        <Kpi k="marge" l="Verwachte marge" v={eur(sum(cs.filter((x) => x.marge != null), (x) => x.marge)) || '€ 0'} s="bruto, op vraagprijzen" />
+        <Kpi k="verkocht" l="Marge verkocht deze maand" v={eur(sum(sold, (x) => x.marge)) || '€ 0'} s={`${sold.length} verkocht`} />
+        <Kpi k="uren" l="Werkuren deze maand" v={hrs(urenMaand)} s="alle medewerkers" />
+      </div>
+      {kpi && <KpiPaneel soort={kpi} onClose={() => setKpi(null)} />}
       <div className="ov">
         <section className="box">
           <h2>Aandacht nodig <span className="count num">{sig.length}</span></h2>
@@ -97,9 +107,27 @@ export default function Overzicht() {
           {at('extern').length > 0 && <div style={{ marginTop: 12 }}>{at('extern').map((c) => (
             <div key={c.id} className="doc"><span className="loc">Extern</span><button className="linkish" onClick={() => openCar(c.id)}>{carLabel(c)}</button><span className="note">{c.locatie_info || 'plek niet ingevuld'}</span></div>
           ))}</div>}
-          {onderweg.length > 0 && <div style={{ marginTop: 12 }}>{onderweg.map((c) => (
-            <div key={c.id} className="doc"><span className="pill st-onderweg">Onderweg</span><button className="linkish" onClick={() => openCar(c.id)}>{carLabel(c)}</button>{c.locatie_info && <span className="note">{c.locatie_info}</span>}</div>
-          ))}</div>}
+          {onderweg.length > 0 && (
+            <div className="ow">
+              <h3 className="kp-h">Onderweg: kosten tot nu toe</h3>
+              <div className="tw"><table className="ow-t">
+                <thead><tr><th>Auto</th><th className="r">Inkoop</th><th className="r mv">Kosten</th><th className="r">Totaal</th></tr></thead>
+                <tbody>{onderweg.map((c) => { const k = carCost(c, d); return (
+                  <tr key={c.id} className="klik" onClick={() => openCar(c.id)}>
+                    <td><button className="linkish" onClick={(e) => { e.stopPropagation(); openCar(c.id); }}>{carLabel(c)}</button>{c.locatie_info && <div className="note">{c.locatie_info}</div>}</td>
+                    <td className="r num">{k.inkoop ? eur(k.inkoop) : <span className="chip bad">onbekend</span>}</td>
+                    <td className="r num mv">{k.kosten + k.facturen ? eur(k.kosten + k.facturen) : '—'}</td>
+                    <td className="r num"><b>{k.totaal ? eur(k.totaal) : '—'}</b></td>
+                  </tr>
+                ); })}</tbody>
+                <tfoot><tr><td>Totaal onderweg · {onderweg.length} auto{onderweg.length === 1 ? '' : "'s"}</td>
+                  <td className="r num">{eur(sum(onderweg, (c) => carCost(c, d).inkoop)) || '€ 0'}</td>
+                  <td className="r num mv">{eur(sum(onderweg, (c) => { const k = carCost(c, d); return k.kosten + k.facturen; })) || '€ 0'}</td>
+                  <td className="r num"><b>{eur(sum(onderweg, (c) => carCost(c, d).totaal)) || '€ 0'}</b></td></tr></tfoot>
+              </table></div>
+              {onderweg.some((c) => !carCost(c, d).inkoop) && <p className="hint">Bij "onbekend" staat nog geen inkoopprijs. Vul die in via Wijzigen in het dossier.</p>}
+            </div>
+          )}
           <p className="hint" style={{ marginTop: 8 }}>Er passen meerdere auto's in een box. Vink "vol" aan zodra er niets meer bij kan.</p>
         </section>
       </div>

@@ -4,14 +4,14 @@ import { STL, LOCL } from './lib';
 export const AppCtx = createContext(null);
 export const useApp = () => useContext(AppCtx);
 
-export function Modal({ title, onClose, children, footer, wide }) {
+export function Modal({ title, onClose, children, footer, wide, sheet }) {
   useEffect(() => {
     const k = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', k);
     return () => window.removeEventListener('keydown', k);
   }, [onClose]);
   return (
-    <div className="scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className={`scrim${sheet ? ' sheet' : ''}`} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal" role="dialog" aria-modal="true" aria-label={title} style={wide ? { maxWidth: 860 } : undefined}>
         <div className="modal-h"><h2>{title}</h2><button className="x" onClick={onClose} aria-label="Sluiten">×</button></div>
         <div className="modal-b">{children}</div>
@@ -70,9 +70,9 @@ export function useUrls(paths) {
 }
 
 // Profielfoto van een auto; zonder foto een grijs vlak
-export function CarFoto({ c, url, lg }) {
+export function CarFoto({ c, url, lg, sm }) {
   return (
-    <span className={`cfoto${lg ? ' lg' : ''}${url ? '' : ' leeg'}`} aria-hidden={url ? undefined : true}>
+    <span className={`cfoto${lg ? ' lg' : ''}${sm ? ' sm' : ''}${url ? '' : ' leeg'}`} aria-hidden={url ? undefined : true}>
       {url ? <img src={url} alt={`Foto ${[c.merk, c.model, c.type].filter(Boolean).join(' ')}`} loading="lazy" />
         : <svg viewBox="0 0 24 24" width="40%" height="40%" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 15l2-5a2 2 0 0 1 2-1.4h10A2 2 0 0 1 19 10l2 5v3h-2.5M5.5 18H3v-3m5.5 3h7" /><circle cx="7" cy="18" r="1.6" /><circle cx="17" cy="18" r="1.6" /></svg>}
     </span>
