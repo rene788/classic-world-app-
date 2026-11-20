@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp, Plate, Status, useUrls, CarFoto } from '../ui';
-import { carName, eur, km } from '../lib';
+import { carName, eurVrij as eur, km } from '../lib';
 
 // Dossier zoals een klant het mag zien: alleen de auto zelf, geen bedragen of interne gegevens
 export default function KlantDossier({ car: c }) {

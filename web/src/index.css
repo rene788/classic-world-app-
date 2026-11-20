@@ -308,6 +308,8 @@ button.kpi:hover,button.kpi:focus-visible{border-color:var(--accent);box-shadow:
 .km-knop.aan{background:var(--accent);border-color:var(--accent);color:#fff}
 .km-opt{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:8px;cursor:pointer}
 .km-opt.vast{cursor:default;opacity:.8}
+.km-opt.sel{border-color:var(--accent);background:var(--accent-soft)}
+.km-modi{display:flex;flex-direction:column;gap:8px}
 .km-opt input{margin-top:3px}
 .km-opt span{display:flex;flex-direction:column;gap:2px}
 .km-opt small{color:var(--muted);font-size:12px}

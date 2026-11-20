@@ -4,7 +4,7 @@ import KpiPaneel from './OverzichtDetail';
 import { LOCL, UITL, carCost, carLabel, carName, daysSince, eur, fmtD, hrs, periodRange, plusDays, sum, today, opVoorraad } from '../lib';
 
 export default function Overzicht() {
-  const { d, act, go, openCar, openKlant, beheerder } = useApp();
+  const { d, act, go, openCar, openKlant, beheerder, klant } = useApp();
   const [kpi, setKpi] = useState(null);
   const stock = d.autos.filter(opVoorraad);
   const [ma, mb] = periodRange('maand');
@@ -31,7 +31,7 @@ export default function Overzicht() {
     if (c.status === 'geannuleerd') continue;
     if (!c.voorraadnr) sig.push({ lvl: 'warn', car: c.id, t: `Geen voorraadnummer: ${carName(c)}`, s: 'Vul voorraad- en chassisnummer in' });
     const dg = c.status === 'onderweg' ? null : daysSince(c.datum_binnen);
-    if (dg != null && dg > 90) sig.push({ lvl: 'bad', car: c.id, t: `${carLabel(c)} staat al ${dg} dagen op voorraad`, s: 'Overweeg prijs of presentatie te herzien' });
+    if (!klant && dg != null && dg > 90) sig.push({ lvl: 'bad', car: c.id, t: `${carLabel(c)} staat al ${dg} dagen op voorraad`, s: 'Overweeg prijs of presentatie te herzien' });
     if (c.status === 'werkplaats') {
       const last = d.uren.filter((h) => h.auto_id === c.id).map((h) => h.datum).sort().pop();
       const sd = daysSince(last || c.datum_binnen);
@@ -45,13 +45,13 @@ export default function Overzicht() {
     else if (p.status === 'nodig') sig.push({ lvl: 'info', car: c.id, t: `Nog te bestellen: ${p.onderdeel}`, s: carLabel(c) });
   }
   for (const x of d.contactmomenten) {
-    if (x.afspraak && x.afspraak >= t && x.afspraak <= plusDays(14)) {
+    if (!klant && x.afspraak && x.afspraak >= t && x.afspraak <= plusDays(14)) {
       const k = d.klanten.find((y) => y.id === x.klant_id); const c = d.autoById[x.auto_id];
       sig.push({ lvl: 'good', klant: k?.id, car: c?.id, t: `${UITL[x.uitkomst] || 'Afspraak'} op ${fmtD(x.afspraak)}`, s: `${k ? k.naam : 'Klant'}${c ? ' · ' + carLabel(c) : ''}` });
     }
   }
   const om = new Set(d.autos.flatMap((c) => d.matchesForCar(c).filter((m) => !m.informed).map((m) => m.klant.id))).size;
-  if (om) sig.push({ lvl: 'info', go: () => go('matches'), t: `${om} klant${om > 1 ? 'en' : ''} nog te informeren over een passende auto`, s: 'Bekijk de matches' });
+  if (om && !klant) sig.push({ lvl: 'info', go: () => go('matches'), t: `${om} klant${om > 1 ? 'en' : ''} nog te informeren over een passende auto`, s: 'Bekijk de matches' });
   const order = { bad: 0, warn: 1, good: 2, info: 3 };
   sig.sort((a, b) => order[a.lvl] - order[b.lvl]);
 
@@ -64,7 +64,7 @@ export default function Overzicht() {
     return (
       <div className={`gbox${cars.length ? ' has' : ''}${d.boxen[k] ? ' vol' : ''}`}>
         <div className="gbox-h"><small>{label}</small>
-          <label className="volchk"><input type="checkbox" checked={!!d.boxen[k]} onChange={(e) => vol(k, e.target.checked)} />vol</label></div>
+          <label className="volchk"><input type="checkbox" checked={!!d.boxen[k]} disabled={!!klant} onChange={(e) => vol(k, e.target.checked)} />vol</label></div>
         {cars.length ? cars.map((c) => <button key={c.id} className="linkish" title={carLabel(c)} onClick={() => openCar(c.id)}>{short(c)}</button>) : <span className="leeg">leeg</span>}
       </div>
     );
@@ -79,11 +79,13 @@ export default function Overzicht() {
   return (
     <div>
       <div className="kpis">
-        <Kpi k="voorraad" l="Op voorraad" v={stock.length} s={`${gem != null ? `gemiddeld ${gem} dagen` : "nog geen auto's"}${onderweg.length ? ` · ${onderweg.length} onderweg` : ''}`} />
+        <Kpi k="voorraad" l="Op voorraad" v={stock.length} s={`${klant ? 'auto\'s' : gem != null ? `gemiddeld ${gem} dagen` : "nog geen auto's"}${onderweg.length ? ` · ${onderweg.length} onderweg` : ''}`} />
+ {!klant && <>
         <Kpi k="waarde" l="Voorraadwaarde" v={eur(sum(stock, (c) => d.prijsOf(c))) || '€ 0'} s="som van vraagprijzen" />
         <Kpi k="investering" l="Geïnvesteerd" v={eur(sum(cs, (x) => x.totaal)) || '€ 0'} s="inkoop, kosten, facturen, arbeid" />
         <Kpi k="marge" l="Verwachte marge" v={eur(sum(cs.filter((x) => x.marge != null), (x) => x.marge)) || '€ 0'} s="bruto, op vraagprijzen" />
         <Kpi k="verkocht" l="Marge verkocht deze maand" v={eur(sum(sold, (x) => x.marge)) || '€ 0'} s={`${sold.length} verkocht`} />
+        </>}
         <Kpi k="uren" l="Werkuren deze maand" v={hrs(urenMaand)} s="alle medewerkers" />
       </div>
       {kpi && <KpiPaneel soort={kpi} onClose={() => setKpi(null)} />}
@@ -109,7 +111,7 @@ export default function Overzicht() {
           {at('extern').length > 0 && <div style={{ marginTop: 12 }}>{at('extern').map((c) => (
             <div key={c.id} className="doc"><span className="loc">Extern</span><button className="linkish" onClick={() => openCar(c.id)}>{carLabel(c)}</button><span className="note">{c.locatie_info || 'plek niet ingevuld'}</span></div>
           ))}</div>}
-          {onderweg.length > 0 && (
+          {onderweg.length > 0 && !klant && (
             <div className="ow">
               <h3 className="kp-h">Onderweg: kosten tot nu toe</h3>
               <div className="tw"><table className="ow-t">
@@ -133,7 +135,7 @@ export default function Overzicht() {
           <p className="hint" style={{ marginTop: 8 }}>Er passen meerdere auto's in een box. Vink "vol" aan zodra er niets meer bij kan.</p>
         </section>
       </div>
-      {geannuleerd.length > 0 && (
+      {geannuleerd.length > 0 && !klant && (
         <section className="box" style={{ marginTop: 16 }}>
           <h2>Geannuleerde aankopen <span className="count num">{geannuleerd.length}</span></h2>
           <p className="note" style={{ marginBottom: 10 }}>Deze auto's tellen niet mee in de voorraad. Hier zie je wat er per auto was afgesproken en welke kosten er al gemaakt zijn.</p>

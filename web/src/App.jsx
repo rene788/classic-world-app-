@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { db, TABLES } from './db';
 import { AppCtx, Modal } from './ui';
-import { ROLL, zietGeld, isBeheerder, magWerken, errText, bestMatch, opVoorraad, STATUSES } from './lib';
+import { ROLL, zietGeld, isBeheerder, magWerken, errText, bestMatch, opVoorraad, STATUSES, zetVerbergBedragen } from './lib';
 import Login, { NieuwWachtwoord } from './views/Login';
 import Overzicht from './views/Overzicht';
 import Voorraad from './views/Voorraad';
@@ -112,9 +112,13 @@ function Werkplaats({ uid, email }) {
     } catch (e) { toast(errText(e), true); return false; }
   }, [reload, toast]);
 
-  const tabs = !rol ? [] : klant ? ['voorraad'] : zietGeld(rol)
+  zetVerbergBedragen(!!klant);
+  const showroom = klant && klant.modus !== 'hele';
+  const rolTabs = !rol ? [] : zietGeld(rol)
     ? ['overzicht', 'voorraad', 'werk', 'matches', 'klanten', 'aanbod', 'bestellingen', 'uren', ...(isBeheerder(rol) ? ['beheer'] : [])]
     : rol === 'monteur' ? ['werk', 'voorraad', 'uren'] : rol === 'meekijker' ? ['voorraad'] : [];
+  // Klantmodus: showroom = alleen voorraad; hele app = alles behalve tabbladen met klantgegevens of inkoopprijzen
+  const tabs = showroom ? ['voorraad'] : klant ? rolTabs.filter((t) => !['klanten', 'matches', 'beheer', 'aanbod', 'bestellingen'].includes(t)) : rolTabs;
   const view = tabs.includes(nav.view) ? nav.view : tabs[0];
 
   const go = useCallback((v, extra = {}) => { setNav((n) => ({ ...n, view: v, ...extra })); window.scrollTo(0, 0); }, []);
@@ -135,7 +139,7 @@ function Werkplaats({ uid, email }) {
   const openMatches = zietGeld(rol) ? new Set(raw.autos.flatMap((c) => d.matchesForCar(c).filter((m) => !m.informed).map((m) => m.klant.id))).size : 0;
   const teKeuren = zietGeld(rol) ? raw.uren.filter((h) => h.status === 'ingediend').length : 0;
   const labels = {
-    overzicht: ['Overzicht'], voorraad: ['Voorraad', klant ? raw.autos.filter((c) => klant.statussen.includes(c.status)).length : raw.autos.filter(opVoorraad).length],
+    overzicht: ['Overzicht'], voorraad: ['Voorraad', showroom ? raw.autos.filter((c) => klant.statussen.includes(c.status)).length : raw.autos.filter(opVoorraad).length],
     werk: ['Mijn werk'], matches: ['Matches', openMatches || null, true], klanten: ['Klanten', raw.klanten.length],
     aanbod: ['Gevonden aanbod', raw.aanbod.filter((x) => x.status === 'nieuw').length || null, true],
     bestellingen: ['Bestellingen'], uren: [rol === 'monteur' ? 'Mijn uren' : 'Uren', isBeheerder(rol) && teKeuren ? teKeuren : null, true],
@@ -143,7 +147,7 @@ function Werkplaats({ uid, email }) {
   };
 
   const ctx = { d, raw, me, rol, uid, email, act, reload, toast, go, openCar, openKlant, nav, setNav,
-    geld: zietGeld(rol) && !klant, beheerder: isBeheerder(rol) && !klant, werker: magWerken(rol) && !klant, klant };
+    geld: zietGeld(rol) && !klant, beheerder: isBeheerder(rol) && !klant, werker: magWerken(rol) && !klant, klant, showroom };
 
   const View = { overzicht: Overzicht, voorraad: Voorraad, werk: MijnWerk, matches: Matches, klanten: Klanten,
     aanbod: Aanbod, bestellingen: Bestellingen, uren: Uren, beheer: Beheer }[view];
@@ -198,19 +202,26 @@ function Werkplaats({ uid, email }) {
 }
 
 function KlantmodusStart({ onClose, onStart }) {
+  const [modus, setModus] = useState('showroom');
   const [prijs, setPrijs] = useState(true);
   const [werk, setWerk] = useState(true);
   const [onderweg, setOnderweg] = useState(false);
-  const start = () => onStart({ prijs, statussen: ['klaar', ...(werk ? ['werkplaats', 'binnen'] : []), ...(onderweg ? ['onderweg'] : [])] });
+  const start = () => onStart({ modus, prijs, statussen: ['klaar', ...(werk ? ['werkplaats', 'binnen'] : []), ...(onderweg ? ['onderweg'] : [])] });
   const label = Object.fromEntries(STATUSES);
   return (
     <Modal title="Klantmodus aanzetten" onClose={onClose}
       footer={<><button className="btn" onClick={onClose}>Annuleren</button><button className="btn primary" onClick={start}>Klantmodus aan</button></>}>
-      <p className="note" style={{ margin: 0 }}>De app laat dan alleen de voorraad zien met foto's en gegevens van de auto. Inkoop, kosten, marge, klanten, uren en interne notities zijn verborgen.</p>
+      <div className="km-modi" role="radiogroup" aria-label="Wat laat je zien?">
+        <label className={`km-opt${modus === 'showroom' ? ' sel' : ''}`}><input type="radio" name="km" checked={modus === 'showroom'} onChange={() => setModus('showroom')} /><span><b>Alleen voorraad (showroom)</b><small>Een nette catalogus: foto's en gegevens van de auto's. Verder niets.</small></span></label>
+        <label className={`km-opt${modus === 'hele' ? ' sel' : ''}`}><input type="radio" name="km" checked={modus === 'hele'} onChange={() => setModus('hele')} /><span><b>Hele app zonder bedragen</b><small>Je kunt overal doorheen, maar alle bedragen zijn verborgen. Klanten, Matches, Bestellingen, Gevonden aanbod en Beheer blijven weg vanwege privacy en inkoopprijzen. Je kunt niets wijzigen.</small></span></label>
+      </div>
+      <h3 className="kp-h" style={{ margin: '4px 0 0' }}>Instellingen</h3>
       <label className="km-opt"><input type="checkbox" checked={prijs} onChange={(e) => setPrijs(e.target.checked)} /><span><b>Vraagprijs tonen</b><small>Zonder vinkje zie je ook geen vraagprijs.</small></span></label>
+      {modus === 'showroom' && <>
       <div className="km-opt vast"><input type="checkbox" checked disabled /><span><b>{label.klaar}</b><small>Altijd zichtbaar.</small></span></div>
       <label className="km-opt"><input type="checkbox" checked={werk} onChange={(e) => setWerk(e.target.checked)} /><span><b>Ook {label.werkplaats.toLowerCase()} en {label.binnen.toLowerCase()}</b><small>Auto's die binnenkort te koop komen.</small></span></label>
       <label className="km-opt"><input type="checkbox" checked={onderweg} onChange={(e) => setOnderweg(e.target.checked)} /><span><b>Ook {label.onderweg.toLowerCase()}</b><small>Let op: daar zitten ook aankopen bij die nog niet rond zijn.</small></span></label>
+      </>}
     </Modal>
   );
 }
