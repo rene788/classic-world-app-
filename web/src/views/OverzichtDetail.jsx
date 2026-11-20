@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp, Modal, Sel, Status, Loc, useUrls, CarFoto } from '../ui';
-import { STATUSES, carCost, carName, daysSince, eur, fmtD, hrs, periodRange, sum, opVoorraad, AFGESLOTEN } from '../lib';
+import { STATUSES, carCost, carName, daysSince, eur, fmtD, hrs, periodRange, sum, AFGESLOTEN, eigenVoorraad, isCons, opVoorraad } from '../lib';
 
 // Uitklappanelen achter de getallen op het overzicht.
 // Elk paneel: bovenin een korte uitsplitsing, daaronder een sorteerbare lijst. Klik op een auto = dossier.
@@ -11,6 +11,7 @@ export const KPI_TITELS = {
   investering: 'Geïnvesteerd',
   marge: 'Verwachte marge',
   verkocht: 'Marge verkocht',
+  consignatie: 'Consignatie',
   uren: 'Werkuren',
 };
 
@@ -20,7 +21,7 @@ const pct = (n) => (n == null || !isFinite(n) ? '' : `${Math.round(n * 100)}%`);
 export default function KpiPaneel({ soort, onClose }) {
   const { openCar } = useApp();
   const open = (id) => { onClose(); openCar(id); };
-  const P = { voorraad: Voorraad, waarde: Waarde, investering: Investering, marge: Marge, verkocht: Verkocht, uren: Uren }[soort];
+  const P = { voorraad: Voorraad, waarde: Waarde, investering: Investering, marge: Marge, verkocht: Verkocht, uren: Uren, consignatie: Consignatie }[soort];
   return (
     <Modal title={KPI_TITELS[soort]} onClose={onClose} wide sheet>
       <P open={open} />
@@ -128,7 +129,7 @@ const geld = (n) => (n == null ? '—' : eur(n) || '€ 0');
 
 function Voorraad({ open }) {
   const { d, klant } = useApp();
-  const stock = d.autos.filter(opVoorraad);
+  const stock = d.autos.filter(eigenVoorraad);
   const perStatus = STATUSES.filter(([k]) => !AFGESLOTEN.includes(k)).map(([k, l]) => ({ k: l, v: stock.filter((c) => (c.status || 'binnen') === k).length, kleur: `var(--st-${k})` }));
   const zonderDatum = stock.filter((c) => c.status !== 'onderweg' && !c.datum_binnen).length;
   return (
@@ -151,7 +152,7 @@ function Voorraad({ open }) {
 
 function Waarde({ open }) {
   const { d } = useApp();
-  const stock = d.autos.filter(opVoorraad);
+  const stock = d.autos.filter(eigenVoorraad);
   const [alleenZonder, setAZ] = useState(false);
   const zonder = stock.filter((c) => d.prijsOf(c) == null);
   const metPrijs = stock.filter((c) => d.prijsOf(c) != null).map((c) => ({ c, p: d.prijsOf(c) }));
@@ -179,7 +180,7 @@ function Waarde({ open }) {
 
 function Investering({ open }) {
   const { d } = useApp();
-  const rows = d.autos.filter(opVoorraad).map((c) => ({ c, ...carCost(c, d) }));
+  const rows = d.autos.filter(eigenVoorraad).map((c) => ({ c, ...carCost(c, d) }));
   const t = (k) => sum(rows, (r) => r[k]);
   const tarief = rows[0]?.tarief || Number(d.settings.uurtarief) || 0;
   const geenInkoop = rows.filter((r) => !r.inkoop).length;
@@ -212,7 +213,7 @@ function Investering({ open }) {
 
 function Marge({ open }) {
   const { d } = useApp();
-  const alle = d.autos.filter(opVoorraad).map((c) => ({ c, ...carCost(c, d) }));
+  const alle = d.autos.filter(eigenVoorraad).map((c) => ({ c, ...carCost(c, d) }));
   const rows = alle.filter((r) => r.marge != null).map((r) => ({ ...r, pct: r.prijs ? r.marge / r.prijs : null }));
   const omzet = sum(rows, (r) => r.prijs), kost = sum(rows, (r) => r.totaal), marge = sum(rows, (r) => r.marge), btw = sum(rows, (r) => r.btw);
   const neg = rows.filter((r) => r.marge < 0).length;
@@ -309,6 +310,46 @@ function Uren({ open }) {
           { k: 'wie', l: 'Monteurs', mv: true, v: (r) => r.wie },
           { k: 'uren', l: 'Uren', r: true, v: (r) => r.uren, toon: (r) => <>{hrs(r.uren)}{r.wacht ? <span className="note"> ({hrs(r.wacht)} open)</span> : null}</> },
         ]} />
+    </>
+  );
+}
+
+function Consignatie({ open }) {
+  const { d } = useApp();
+  const rows = d.autos.filter((c) => opVoorraad(c) && isCons(c)).map((c) => {
+    const k = carCost(c, d);
+    const eig = d.klanten.find((x) => x.id === k.f.cons_eigenaar);
+    return { c, ...k, eig };
+  });
+  const metAfspraak = rows.filter((r) => r.verdienste != null);
+  const t = (k, rs = metAfspraak) => sum(rs, (r) => r[k]);
+  const zonder = rows.length - metAfspraak.length;
+  const afspraakTekst = (r) => (!r.f.cons_afspraak || r.f.cons_waarde == null ? null
+    : r.f.cons_afspraak === 'provisie_pct' ? `${r.f.cons_waarde}% provisie` : r.f.cons_afspraak === 'provisie_bedrag' ? `${eur(r.f.cons_waarde)} provisie` : `${eur(r.f.cons_waarde)} voor eigenaar`);
+  const doorbelasten = sum(rows, (r) => r.klantArbeid + r.klantFacturen);
+  return (
+    <>
+      <Rekensom
+        regels={[
+          { l: 'Vraagprijzen', v: t('prijs'), n: metAfspraak.length },
+          { op: '−', l: 'Voor de eigenaren', v: t('eigenaarKrijgt') },
+          { op: '=', l: 'Onze provisie', v: t('verdienste'), sub: true },
+          { op: '−', l: 'Eigen kosten (transport, facturen, uren)', v: t('totaal') },
+        ]}
+        totaal={{ l: 'Verwacht resultaat consignatie', v: t('marge') }} />
+      {doorbelasten > 0 && <Rekensom regels={[]} totaal={{ l: 'Nog door te belasten aan eigenaren', v: doorbelasten, uitleg: 'uren en onderdelen "voor de klant"' }} />}
+      {zonder > 0 && <div className="banner warn">{zonder} consignatie-auto{zonder === 1 ? ' heeft' : "'s hebben"} nog geen afspraak of vraagprijs en {zonder === 1 ? 'telt' : 'tellen'} niet mee. Vul de afspraak in bij het dossier.</div>}
+      <p className="hint">Consignatie-auto's tellen niet mee in Op voorraad, Voorraadwaarde, Geïnvesteerd en Verwachte marge. Bij verkoop telt het resultaat wel mee in Marge verkocht.</p>
+      <PerAuto n={rows.length}>
+        <AutoTabel open={open} rows={rows} start={{ k: 'tot', dir: 'asc' }}
+          kolommen={[autoKol,
+            { k: 'eig', l: 'Eigenaar', mv: true, v: (r) => r.eig?.naam || null },
+            { k: 'afspraak', l: 'Afspraak', mv: true, v: (r) => afspraakTekst(r), toon: (r) => afspraakTekst(r) || <span className="chip bad">geen afspraak</span> },
+            { k: 'tot', l: 'Loopt tot', v: (r) => r.f.cons_tot || null, toon: (r) => (r.f.cons_tot ? fmtD(r.f.cons_tot) : '—') },
+            { k: 'prijs', l: 'Vraagprijs', r: true, mv: true, v: (r) => r.prijs, toon: (r) => (r.prijs != null ? eur(r.prijs) : '—') },
+            { k: 'verd', l: 'Provisie', r: true, v: (r) => r.verdienste, toon: (r) => (r.verdienste != null ? <b>{eur(r.verdienste)}</b> : '—') },
+          ]} />
+      </PerAuto>
     </>
   );
 }

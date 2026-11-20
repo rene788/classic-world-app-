@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useApp, Modal, Sel, Plate, Nr, Status, Loc, DelBtn, Field, useUrls, CarFoto, DocLink } from '../ui';
 import {
   STATUSES, PART_ST, KOST_SOORT, ORDER_ST, FASES, BESTEMMING, CHECK_DEFAULT, UITL, carName, fmtD, eur, eur2, km, hrs, sum,
-  daysSince, num, today, carCost, wishText, shrink, safeName, rid, thumb, opVoorraad, eurVrij,
+  daysSince, num, today, carCost, wishText, shrink, safeName, rid, thumb, opVoorraad, eurVrij, isCons, CONS_AFSPRAAK,
 } from '../lib';
 import { UrenForm } from './MijnWerk';
 import { BestellingForm } from './Bestellingen';
@@ -25,7 +25,7 @@ export default function AutoDossier({ car, onEdit }) {
           <ProfielFoto c={c} />
           <div style={{ flex: '1 1 220px', minWidth: 0 }}>
             <h2 className="d-title">{carName(c)}{c.bouwjaar ? `, ${c.bouwjaar}` : ''}</h2>
-            <div className="d-sub"><Nr c={c} lg /><Plate c={c} lg /><Status s={c.status} /><Loc c={c} /></div>
+            <div className="d-sub"><Nr c={c} lg />{!klant && isCons(c) && <span className="chip cons">Consignatie</span>}<Plate c={c} lg /><Status s={c.status} /><Loc c={c} /></div>
             <DocLink c={c} edit={geld} />
           </div>
           <div className="d-actions">
@@ -44,6 +44,8 @@ export default function AutoDossier({ car, onEdit }) {
           ? <Fact k="Onderweg" v={c.locatie_info || 'nog niet binnen'} />
           : !klant && <Fact k="Binnen sinds" v={c.datum_binnen ? `${fmtD(c.datum_binnen)}${opVoorraad(c) && dg != null ? ` (${dg} d)` : ''}` : ''} />}
         {c.verkoopdatum && <Fact k="Verkocht op" v={fmtD(c.verkoopdatum)} />}
+        {geld && isCons(c) && <Fact k="Eigenaar" v={d.klanten.find((x) => x.id === d.finByAuto[c.id]?.cons_eigenaar)?.naam || 'nog niet ingevuld'} />}
+        {geld && isCons(c) && d.finByAuto[c.id]?.cons_tot && <Fact k="Consignatie tot" v={fmtD(d.finByAuto[c.id].cons_tot)} />}
         {c.status === 'geannuleerd' && <Fact k="Aankoop geannuleerd" v={`${c.geannuleerd_op ? fmtD(c.geannuleerd_op) : 'datum onbekend'}${c.annuleer_reden ? ` · ${c.annuleer_reden}` : ''}`} />}
         {geld && <Fact k="Vraagprijs" v={eur(d.prijsOf(c))} />}
         {klant?.prijs && <Fact k="Vraagprijs" v={d.prijsOf(c) != null ? eurVrij(d.prijsOf(c)) : 'Op aanvraag'} />}
@@ -331,21 +333,46 @@ function Financien({ c }) {
   const [vk, setVk] = useState(f.verkoopprijs ?? '');
   useEffect(() => { setVk(f.verkoopprijs ?? ''); }, [f.verkoopprijs]);
 
-  const saveFin = (patch) => act((db) => db.upsert('auto_financien', { auto_id: c.id, inkoopprijs: f.inkoopprijs ?? null, vraagprijs: f.vraagprijs ?? null, regeling: f.regeling || 'marge', verkoopprijs: f.verkoopprijs ?? null, ...patch }), 'Opgeslagen', ['auto_financien']);
+  const saveFin = (patch) => act((db) => db.upsert('auto_financien', { auto_id: c.id, inkoopprijs: f.inkoopprijs ?? null, vraagprijs: f.vraagprijs ?? null, regeling: f.regeling || 'marge', verkoopprijs: f.verkoopprijs ?? null,
+    cons_eigenaar: f.cons_eigenaar ?? null, cons_afspraak: f.cons_afspraak ?? null, cons_waarde: f.cons_waarde ?? null, cons_tot: f.cons_tot ?? null, cons_afgerekend: f.cons_afgerekend ?? false, ...patch }), 'Opgeslagen', ['auto_financien']);
+  const [cw, setCw] = useState(f.cons_waarde ?? '');
+  useEffect(() => { setCw(f.cons_waarde ?? ''); }, [f.cons_waarde]);
   const kosten = d.kosten.filter((x) => x.auto_id === c.id).sort((a, b) => b.datum.localeCompare(a.datum));
   const ords = d.bestellingen.filter((x) => x.auto_id === c.id).sort((a, b) => b.datum.localeCompare(a.datum));
 
   return (
     <section className="sec">
-      <h3>Kosten en marge <span className="aux">alleen zichtbaar voor verkoop en beheerder</span></h3>
+      <h3>{k.cons ? 'Consignatie en kosten' : 'Kosten en marge'} <span className="aux">alleen zichtbaar voor verkoop en beheerder</span></h3>
+      {k.cons && <>
+        <div className="grid2" style={{ marginBottom: 12 }}>
+          <Field label="Eigenaar"><Sel value={f.cons_eigenaar} onChange={(v) => saveFin({ cons_eigenaar: v || null })} empty="Kies een klant"
+            options={[...d.klanten].sort((a, b) => (a.naam || '').localeCompare(b.naam || '')).map((x) => [x.id, x.naam])} /></Field>
+          <Field label="Afspraak"><Sel value={f.cons_afspraak} onChange={(v) => saveFin({ cons_afspraak: v || null })} empty="Nog geen afspraak" options={CONS_AFSPRAAK} /></Field>
+          <Field label={f.cons_afspraak === 'provisie_pct' ? 'Provisie (%)' : f.cons_afspraak === 'netto_eigenaar' ? 'Bedrag voor de eigenaar (€)' : 'Provisie (€)'}>
+            <input className="in" inputMode="decimal" value={cw} disabled={!f.cons_afspraak} onChange={(e) => setCw(e.target.value)} onBlur={() => { if (num(cw) !== (f.cons_waarde ?? null)) saveFin({ cons_waarde: num(cw) }); }} />
+          </Field>
+          <Field label="Consignatie loopt tot"><input className="in" type="date" value={f.cons_tot || ''} onChange={(e) => saveFin({ cons_tot: e.target.value || null })} /></Field>
+        </div>
+        {!d.klanten.length && <p className="hint">Zet de eigenaar eerst als klant in de app; dan kun je hem hier kiezen.</p>}
+      </>}
       <div className="grid2" style={{ marginBottom: 12 }}>
         <Field label="Verkoopprijs (bij verkoop)">
           <input className="in" inputMode="decimal" value={vk} onChange={(e) => setVk(e.target.value)} onBlur={() => { if (num(vk) !== (f.verkoopprijs ?? null)) saveFin({ verkoopprijs: num(vk) }); }} />
         </Field>
-        <Field label="Btw-regeling">
+        {!k.cons && <Field label="Btw-regeling">
           <Sel value={f.regeling || 'marge'} onChange={(v) => saveFin({ regeling: v })} options={[['marge', 'Margeregeling'], ['btw', 'Btw-auto (21% over verkoopprijs)']]} />
-        </Field>
+        </Field>}
       </div>
+      {k.cons ? (
+        <div className="ledger">
+          <Row l={k.verkocht ? 'Verkoopprijs' : 'Vraagprijs'} v={k.prijs != null ? eur2(k.prijs) : '—'} />
+          <Row l="Voor de eigenaar" v={k.eigenaarKrijgt != null ? eur2(k.eigenaarKrijgt) : '—'} />
+          <Row l="Onze provisie" v={k.verdienste != null ? eur2(k.verdienste) : '—'} cls="total" />
+          <Row l={`Eigen kosten (${kosten.length}) en facturen`} v={eur2(k.kosten + k.facturen)} />
+          <Row l={`Eigen arbeid: ${hrs(k.uren)} uur × ${eur2(k.tarief)}`} v={eur2(k.arbeid)} />
+          {k.marge != null && <Row l="Resultaat voor ons" v={<span className={k.marge >= 0 ? 'pos' : 'neg'}>{eur2(k.marge)}</span>} cls="total big" />}
+        </div>
+      ) : <>
       <div className="ledger">
         <Row l="Inkoopprijs" v={eur2(k.inkoop)} />
         <Row l={`Kosten (${kosten.length})`} v={eur2(k.kosten)} />
@@ -357,12 +384,16 @@ function Financien({ c }) {
         {k.marge != null && f.regeling !== 'btw' && k.btw > 0 && <Row l="Waarvan btw margeregeling (21/121)" v={eur2(k.btw)} />}
         {k.netto != null && f.regeling !== 'btw' && <Row l="Nettomarge na btw" v={eur2(k.netto)} cls="total" />}
       </div>
+      </>}
+      {k.cons && c.status === 'verkocht' && (
+        <label className="chk" style={{ marginTop: 10 }}><input type="checkbox" checked={!!f.cons_afgerekend} onChange={(e) => saveFin({ cons_afgerekend: e.target.checked })} /> Afgerekend met de eigenaar{k.eigenaarKrijgt != null ? ` (${eur2(k.eigenaarKrijgt)}${k.klantArbeid + k.klantFacturen ? `, min ${eur2(k.klantArbeid + k.klantFacturen)} doorbelaste kosten` : ''})` : ''}</label>
+      )}
       {!k.tarief && <p className="hint" style={{ marginTop: 6 }}>Het interne uurtarief staat op € 0. De beheerder stelt het in bij Beheer.</p>}
       {(k.klantUren > 0 || k.klantFacturen > 0) && (
         <div className="ledger" style={{ marginTop: 12 }}>
           <Row l={`Voor de klant: ${hrs(k.klantUren)} uur × ${eur2(k.tariefKlant)}`} v={eur2(k.klantArbeid)} />
           <Row l="Voor de klant: bestellingen" v={eur2(k.klantFacturen)} />
-          <Row l="Door te belasten aan klant" v={eur2(k.klantArbeid + k.klantFacturen)} cls="total" />
+          <Row l={k.cons ? 'Door te belasten aan de eigenaar' : 'Door te belasten aan klant'} v={eur2(k.klantArbeid + k.klantFacturen)} cls="total" />
         </div>
       )}
 

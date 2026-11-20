@@ -305,6 +305,24 @@ alter table public.autos add column if not exists geannuleerd_op date;
 alter table public.autos add column if not exists annuleer_reden text;
 -- Link naar de map met documentatie (SharePoint, OneDrive, Google Drive ...)
 alter table public.autos add column if not exists doc_link text;
+-- Consignatie (nov 2026): voorraadnummers 200 t/m 299 zijn altijd consignatie
+alter table public.autos add column if not exists soort text not null default 'eigen';
+alter table public.autos drop constraint if exists autos_soort_check;
+alter table public.autos add constraint autos_soort_check check (soort in ('eigen','consignatie'));
+create or replace function public.zet_soort() returns trigger language plpgsql set search_path = public as $$
+begin
+  if new.voorraadnr ~ '^[0-9]{4}-2[0-9]{2}$' then new.soort := 'consignatie'; end if;
+  return new;
+end $$;
+drop trigger if exists zet_soort on public.autos;
+create trigger zet_soort before insert or update of voorraadnr, soort on public.autos for each row execute function public.zet_soort();
+alter table public.auto_financien add column if not exists cons_eigenaar uuid references public.klanten(id) on delete set null;
+alter table public.auto_financien add column if not exists cons_afspraak text;
+alter table public.auto_financien drop constraint if exists auto_financien_cons_afspraak_check;
+alter table public.auto_financien add constraint auto_financien_cons_afspraak_check check (cons_afspraak is null or cons_afspraak in ('provisie_pct','provisie_bedrag','netto_eigenaar'));
+alter table public.auto_financien add column if not exists cons_waarde numeric;
+alter table public.auto_financien add column if not exists cons_tot date;
+alter table public.auto_financien add column if not exists cons_afgerekend boolean not null default false;
 
 alter table public.profielen        enable row level security;
 alter table public.autos            enable row level security;

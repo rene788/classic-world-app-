@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp, Modal, Field, Sel, Plate, Nr, Status, Loc, Empty, useForm, useUrls, CarFoto } from '../ui';
-import { STATUSES, LOCATIES, BESTEMMING, carName, norm, num, int, nextNr, today, eur, eurVrij, daysSince, opVoorraad } from '../lib';
+import { STATUSES, LOCATIES, BESTEMMING, carName, norm, num, int, nextNr, today, eur, eurVrij, daysSince, isCons, consNr, opVoorraad } from '../lib';
 import AutoDossier from './AutoDossier';
 import KlantDossier from './KlantDossier';
 
@@ -9,12 +9,14 @@ export default function Voorraad() {
   const [q, setQ] = useState('');
   const [st, setSt] = useState('actief');
   const [loc, setLoc] = useState('');
+  const [srt, setSrt] = useState('');
   const [form, setForm] = useState(null);
 
   const s = norm(q);
   const list = d.autos
     .filter((c) => (showroom ? klant.statussen.includes(c.status) : st === 'alle' || (st === 'actief' ? opVoorraad(c) : c.status === st)))
     .filter((c) => showroom || !loc || c.locatie === loc)
+    .filter((c) => showroom || !srt || (srt === 'consignatie') === isCons(c))
     .filter((c) => !s || norm([c.voorraadnr, c.chassisnr, c.kenteken, c.merk, c.model, c.type, c.kleur, c.bouwjaar].join(' ')).includes(s))
     .sort((a, b) => String(b.voorraadnr || '').localeCompare(String(a.voorraadnr || ''), 'nl', { numeric: true }) || (b.aangemaakt || '').localeCompare(a.aangemaakt || ''));
 
@@ -30,6 +32,7 @@ export default function Voorraad() {
           {!showroom && <div style={{ display: 'flex', gap: 6, width: '100%' }}>
             <Sel value={st} onChange={setSt} options={[['actief', 'Op voorraad'], ...STATUSES, ['alle', 'Alle auto\'s']]} aria-label="Status" />
             <Sel value={loc} onChange={setLoc} options={LOCATIES} empty="Alle locaties" aria-label="Locatie" />
+            <Sel value={srt} onChange={setSrt} options={[['eigen', 'Eigen voorraad'], ['consignatie', 'Consignatie']]} empty="Eigen + consignatie" aria-label="Eigen of consignatie" />
           </div>}
         </div>
         <div className="list">
@@ -48,7 +51,7 @@ export default function Voorraad() {
                       <Plate c={c} />{c.kleur && <span className="chip">{c.kleur}</span>}
                       {klant.prijs && d.prijsOf(c) ? <span className="chip">{eurVrij(d.prijsOf(c))}</span> : null}
                     </> : <>
-                    <Nr c={c} /><Plate c={c} /><Loc c={c} />
+                    <Nr c={c} />{!klant && isCons(c) && <span className="chip cons">Consignatie</span>}<Plate c={c} /><Loc c={c} />
                     {open > 0 && <span className="chip">{open} open</span>}
                     {matches > 0 && <span className="chip match">{matches} match{matches > 1 ? 'es' : ''}</span>}
                     {geld && d.prijsOf(c) ? <span className="chip">{eur(d.prijsOf(c))}</span> : null}
@@ -79,8 +82,10 @@ export function CarForm({ car, onClose }) {
     merk: car?.merk ?? '', model: car?.model ?? '', type: car?.type ?? '', bouwjaar: car?.bouwjaar ?? '', kleur: car?.kleur ?? '',
     km: car?.km ?? '', status: car?.status ?? 'binnen', locatie: car?.locatie ?? '', locatie_info: car?.locatie_info ?? '',
     datum_binnen: car?.datum_binnen ?? today(), bestemming: car?.bestemming ?? '', omschrijving: car?.omschrijving ?? '',
-    inkoopprijs: fin.inkoopprijs ?? '', vraagprijs: fin.vraagprijs ?? '',
+    inkoopprijs: fin.inkoopprijs ?? '', vraagprijs: fin.vraagprijs ?? '', soort: car?.soort ?? 'eigen',
   });
+  const consVast = consNr(f.voorraadnr);
+  const cons = consVast || f.soort === 'consignatie';
   const [busy, setBusy] = useState(false);
 
   const save = async () => {
@@ -91,10 +96,11 @@ export function CarForm({ car, onClose }) {
       merk: f.merk.trim(), model: f.model.trim(), type: f.type.trim(), bouwjaar: int(f.bouwjaar), kleur: f.kleur.trim() || null,
       km: int(f.km), status: f.status, locatie: f.locatie || null, locatie_info: f.locatie === 'extern' ? (f.locatie_info.trim() || null) : null,
       datum_binnen: f.datum_binnen || null, bestemming: f.bestemming || null, omschrijving: f.omschrijving.trim() || null,
+      soort: cons ? 'consignatie' : 'eigen',
     };
     const res = await act(async (db) => {
       const saved = car ? await db.update('autos', car.id, row) : await db.insert('autos', row);
-      const ink = num(f.inkoopprijs), vr = num(f.vraagprijs);
+      const ink = cons ? (fin.inkoopprijs ?? null) : num(f.inkoopprijs), vr = num(f.vraagprijs);
       if (geld && (ink != null || vr != null || d.finByAuto[saved.id])) {
         await db.upsert('auto_financien', { auto_id: saved.id, inkoopprijs: ink, vraagprijs: vr });
       }
@@ -113,7 +119,11 @@ export function CarForm({ car, onClose }) {
         <Field label="Voorraadnummer"><input className="in mono" value={f.voorraadnr} onChange={set('voorraadnr')} placeholder="bijv. 2026-014" autoFocus /></Field>
         <Field label="Chassisnummer"><input className="in mono" value={f.chassisnr} onChange={set('chassisnr')} /></Field>
         <Field label="Kenteken"><input className="in mono" value={f.kenteken} onChange={set('kenteken')} /></Field>
+        <Field label="Soort">
+          <Sel value={cons ? 'consignatie' : 'eigen'} onChange={set('soort')} disabled={consVast} options={[['eigen', 'Eigen voorraad'], ['consignatie', 'Consignatie']]} />
+        </Field>
       </div>
+      {consVast && <p className="hint" style={{ marginTop: -6 }}>Voorraadnummers 200 t/m 299 zijn altijd consignatie.</p>}
       <div className="grid2">
         <Field label="Merk"><input className="in" value={f.merk} onChange={set('merk')} placeholder="Porsche" /></Field>
         <Field label="Model"><input className="in" value={f.model} onChange={set('model')} placeholder="911" /></Field>
@@ -133,12 +143,12 @@ export function CarForm({ car, onClose }) {
       </div>
       {geld && (
         <div className="grid2">
-          <Field label="Inkoopprijs (€)"><input className="in" inputMode="decimal" value={f.inkoopprijs} onChange={set('inkoopprijs')} /></Field>
+          {!cons && <Field label="Inkoopprijs (€)"><input className="in" inputMode="decimal" value={f.inkoopprijs} onChange={set('inkoopprijs')} /></Field>}
           <Field label="Vraagprijs (€)"><input className="in" inputMode="decimal" value={f.vraagprijs} onChange={set('vraagprijs')} /></Field>
         </div>
       )}
       <Field label="Omschrijving en bijzonderheden"><textarea className="in" value={f.omschrijving} onChange={set('omschrijving')} /></Field>
-      {geld && <p className="hint">Prijzen zijn alleen zichtbaar voor verkoop en beheerder, nooit voor monteurs.</p>}
+      {geld && <p className="hint">Prijzen zijn alleen zichtbaar voor verkoop en beheerder, nooit voor monteurs.{cons ? ' De afspraak met de eigenaar vul je in het dossier in, bij Consignatie.' : ''}</p>}
     </Modal>
   );
 }

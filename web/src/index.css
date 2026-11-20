@@ -331,3 +331,7 @@ button.kpi:hover,button.kpi:focus-visible{border-color:var(--accent);box-shadow:
 .dropvak small{display:block;font-size:12px;margin-top:2px}
 .dropvak small.bad{color:var(--danger)}
 .dropvak .linkish{font-size:12px}
+
+/* consignatie */
+.chip.cons{background:var(--st-onderweg);color:#fff;font-weight:600}
+.ledger + .chk{margin-top:10px}

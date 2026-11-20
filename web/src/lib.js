@@ -4,6 +4,11 @@ export const STATUSES = [['onderweg', 'Onderweg'], ['binnen', 'Binnengekomen'], 
 // Afgesloten auto's tellen niet meer mee als voorraad
 export const AFGESLOTEN = ['verkocht', 'geannuleerd'];
 export const opVoorraad = (c) => !AFGESLOTEN.includes(c.status);
+// Consignatie: voorraadnummers 200 t/m 299 (bijv. 2026-201) zijn altijd consignatie
+export const consNr = (nr) => /^\d{4}-2\d\d$/.test(String(nr || '').trim());
+export const isCons = (c) => c.soort === 'consignatie' || consNr(c.voorraadnr);
+export const eigenVoorraad = (c) => opVoorraad(c) && !isCons(c);
+export const CONS_AFSPRAAK = [['provisie_pct', 'Provisie in % van de verkoopprijs'], ['provisie_bedrag', 'Vaste provisie (bedrag)'], ['netto_eigenaar', 'Vast bedrag voor de eigenaar, rest voor ons']];
 export const STL = Object.fromEntries(STATUSES);
 export const LOCATIES = [['werkplaats', 'Werkplaats'], ['showroom', 'Showroom'], ['loods', 'Externe loods'], ['extern', 'Externe locatie'],
   ...Array.from({ length: 10 }, (_, i) => ['box' + (i + 1), 'Garagebox ' + (i + 1)])];
@@ -135,14 +140,24 @@ export function carCost(c, d) {
   const tarief = Number(d.settings.uurtarief) || 0;
   const tariefKlant = Number(d.settings.uurtarief_klant) || tarief;
   const arbeid = uren * tarief;
-  const inkoop = Number(f.inkoopprijs) || 0;
-  const totaal = inkoop + kosten + facturen + arbeid;
   const verkocht = c.status === 'verkocht' && f.verkoopprijs != null;
   const prijs = verkocht ? Number(f.verkoopprijs) : (f.vraagprijs != null ? Number(f.vraagprijs) : null);
+  const extra = { klantUren, klantFacturen, tariefKlant, klantArbeid: klantUren * tariefKlant };
+  if (isCons(c)) {
+    // Consignatie: geen inkoop. Wij verdienen de provisie (of alles boven het bedrag voor de eigenaar), min eigen kosten.
+    const w = f.cons_waarde != null ? Number(f.cons_waarde) : null;
+    const verdienste = prijs == null || w == null ? null
+      : f.cons_afspraak === 'provisie_pct' ? prijs * w / 100 : f.cons_afspraak === 'provisie_bedrag' ? w : f.cons_afspraak === 'netto_eigenaar' ? prijs - w : null;
+    const totaal = kosten + facturen + arbeid;
+    const marge = verdienste != null ? verdienste - totaal : null;
+    return { f, cons: true, kosten, facturen, uren, tarief, arbeid, inkoop: 0, totaal, prijs, verkocht, verdienste,
+      eigenaarKrijgt: verdienste != null ? prijs - verdienste : null, marge, btw: 0, netto: marge, ...extra };
+  }
+  const inkoop = Number(f.inkoopprijs) || 0;
+  const totaal = inkoop + kosten + facturen + arbeid;
   const marge = prijs ? prijs - totaal : null;
   const btw = f.regeling !== 'btw' && marge > 0 ? marge * 21 / 121 : 0;
-  return { f, kosten, facturen, uren, tarief, arbeid, inkoop, totaal, prijs, verkocht, marge, btw, netto: marge != null ? marge - btw : null,
-    klantUren, klantFacturen, tariefKlant, klantArbeid: klantUren * tariefKlant };
+  return { f, kosten, facturen, uren, tarief, arbeid, inkoop, totaal, prijs, verkocht, marge, btw, netto: marge != null ? marge - btw : null, ...extra };
 }
 
 // Foto's verkleinen voor upload (scheelt opslag en laadtijd)

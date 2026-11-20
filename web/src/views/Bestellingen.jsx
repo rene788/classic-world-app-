@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp, Modal, Field, Sel, DelBtn, Empty, useForm } from '../ui';
-import { ORDER_ST, carLabel, eur2, fmtD, norm, num, sum, today, safeName, rid, opVoorraad } from '../lib';
+import { ORDER_ST, carLabel, eur2, fmtD, norm, num, sum, today, safeName, rid, opVoorraad, isCons } from '../lib';
 
 export default function Bestellingen() {
   const { d, openCar } = useApp();
@@ -52,9 +52,9 @@ export default function Bestellingen() {
 export function BestellingForm({ order, preset, onClose }) {
   const { d, act } = useApp();
   const o = order || {};
-  const [f, set] = useForm({
+  const [f, set, setF] = useForm({
     auto_id: o.auto_id ?? preset?.auto_id ?? '', leverancier: o.leverancier ?? '', omschrijving: o.omschrijving ?? '', factuurnr: o.factuurnr ?? '',
-    bedrag: o.bedrag != null ? String(o.bedrag).replace('.', ',') : '', datum: o.datum ?? today(), status: o.status ?? 'besteld', voor_klant: o.voor_klant ?? false,
+    bedrag: o.bedrag != null ? String(o.bedrag).replace('.', ',') : '', datum: o.datum ?? today(), status: o.status ?? 'besteld', voor_klant: o.voor_klant ?? !!(d.autoById[o.auto_id ?? preset?.auto_id] && isCons(d.autoById[o.auto_id ?? preset?.auto_id])),
   });
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -81,7 +81,7 @@ export function BestellingForm({ order, preset, onClose }) {
   return (
     <Modal title={order ? 'Bestelling' : 'Bestelling toevoegen'} onClose={onClose}
       footer={<>{order && <span style={{ marginRight: 'auto' }}><DelBtn onConfirm={del} /></span>}<button className="btn" onClick={onClose}>Annuleren</button><button className="btn primary" disabled={busy} onClick={save}>{busy ? 'Opslaan…' : 'Opslaan'}</button></>}>
-      <Field label="Voorraadnummer / auto"><Sel value={f.auto_id} onChange={set('auto_id')} options={autos.map((c) => [c.id, carLabel(c)])} empty="Losse bestelling (geen auto)" style={{ width: '100%' }} /></Field>
+      <Field label="Voorraadnummer / auto"><Sel value={f.auto_id} onChange={(v) => setF((x) => ({ ...x, auto_id: v, ...(order ? {} : { voor_klant: !!(d.autoById[v] && isCons(d.autoById[v])) }) }))} options={autos.map((c) => [c.id, carLabel(c)])} empty="Losse bestelling (geen auto)" style={{ width: '100%' }} /></Field>
       <div className="grid2">
         <Field label="Leverancier"><input className="in" value={f.leverancier} onChange={set('leverancier')} autoFocus /></Field>
         <Field label="Factuurnummer"><input className="in mono" value={f.factuurnr} onChange={set('factuurnr')} /></Field>
