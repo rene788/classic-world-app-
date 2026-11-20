@@ -23,9 +23,11 @@ const S = {
     { id: 'a3', voorraadnr: '2026-014', chassisnr: '57795', kenteken: null, merk: 'Porsche', model: '356', type: 'A T1 Coupé', bouwjaar: 1956, kleur: 'Silbermetallic', km: 82000, status: 'binnen', locatie: 'box3', datum_binnen: d0(5), aangemaakt: d0(5) },
     { id: 'a4', voorraadnr: '2026-009', chassisnr: 'ZFFJA09B000012345', kenteken: 'XX-99-YY', merk: 'Ferrari', model: '308', type: 'GTS', bouwjaar: 1979, kleur: 'Rosso Corsa', km: 61000, status: 'verkocht', locatie: null, datum_binnen: d0(200), verkoopdatum: d0(3), bestemming: 'buiten', aangemaakt: d0(200) },
     { id: 'a6', voorraadnr: '2026-105', chassisnr: null, kenteken: null, merk: 'Porsche', model: '911', type: '3.2 Carrera Coupé', bouwjaar: 1985, kleur: 'Zwart', km: null, status: 'onderweg', locatie: null, locatie_info: 'Transport uit Duitsland', datum_binnen: d0(150), aangemaakt: d0(150) },
+    { id: 'a7', voorraadnr: '2026-099', chassisnr: '9113100777', kenteken: null, merk: 'Porsche', model: '911', type: 'T Targa', bouwjaar: 1973, kleur: 'Oranje', km: null, status: 'geannuleerd', locatie: null, geannuleerd_op: d0(6), annuleer_reden: 'Verkoper trok zich terug', datum_binnen: null, aangemaakt: d0(30) },
     { id: 'a5', voorraadnr: null, chassisnr: 'WDB1130441A000123', kenteken: 'DK-55-12', merk: 'Mercedes-Benz', model: '280 SL', type: 'Pagode', bouwjaar: 1969, kleur: 'Papyrusweiß', km: 99000, status: 'binnen', locatie: 'extern', locatie_info: 'Spuiterij Jansen', datum_binnen: d0(2), aangemaakt: d0(2) },
   ],
   auto_financien: [
+    { auto_id: 'a7', inkoopprijs: 41000, vraagprijs: 52900, regeling: 'marge' },
     { auto_id: 'a1', inkoopprijs: 78000, vraagprijs: 112500, regeling: 'marge' },
     { auto_id: 'a2', inkoopprijs: 64000, vraagprijs: 89500, regeling: 'marge' },
     { auto_id: 'a4', inkoopprijs: 70000, vraagprijs: 95000, verkoopprijs: 92000, regeling: 'marge' },
@@ -45,7 +47,7 @@ const S = {
     { id: 'h3', auto_id: 'a2', monteur_id: 'u-ver', datum: d0(2), uren: 1, omschrijving: 'Poetsen voor foto', voor_klant: true, status: 'goedgekeurd', aangemaakt: d0(2) },
   ],
   klokken: [],
-  kosten: [{ id: 'k1', auto_id: 'a1', soort: 'transport', omschrijving: 'Transport uit Duitsland', bedrag: 850, datum: d0(40), aangemaakt: d0(40) }],
+  kosten: [{ id: 'k1', auto_id: 'a1', soort: 'transport', omschrijving: 'Transport uit Duitsland', bedrag: 850, datum: d0(40), aangemaakt: d0(40) }, { id: 'k2', auto_id: 'a7', soort: 'keuring', omschrijving: 'Aankoopkeuring', bedrag: 450, datum: d0(10), aangemaakt: d0(10) }],
   bestellingen: [
     { id: 'b1', auto_id: 'a1', leverancier: 'Rose Passion', omschrijving: 'Remschijven + blokken', factuurnr: 'RP-2291', bedrag: 642.5, datum: d0(8), status: 'besteld', voor_klant: false, aangemaakt: d0(8) },
     { id: 'b2', auto_id: null, leverancier: 'Würth', omschrijving: 'Werkplaatsvoorraad', factuurnr: 'W-1', bedrag: 212, datum: d0(4), status: 'betaald', voor_klant: false, aangemaakt: d0(4) },

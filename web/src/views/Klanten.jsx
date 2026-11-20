@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp, Modal, Field, Sel, DelBtn, Empty, Nr, Plate, Status, useForm } from '../ui';
-import { UITKOMST, UITL, KANAAL, carLabel, carName, eur, fmtD, norm, wishText, bestMatch, int, num, today } from '../lib';
+import { UITKOMST, UITL, KANAAL, carLabel, carName, eur, fmtD, norm, wishText, bestMatch, int, num, today, opVoorraad } from '../lib';
 
 export default function Klanten() {
   const { d, nav, setNav } = useApp();
@@ -11,7 +11,7 @@ export default function Klanten() {
     .filter((k) => !s || norm([k.naam, k.telefoon, k.email, k.plaats, k.land, ...(d.wensenByKlant[k.id] || []).map(wishText)].join(' ')).includes(s))
     .sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
   const k = nav.klantId && d.klanten.find((x) => x.id === nav.klantId);
-  const actieveMatches = (kl) => d.autos.filter((c) => c.status !== 'verkocht' && bestMatch(d.wensenByKlant[kl.id] || [], c, d.prijsOf(c))).length;
+  const actieveMatches = (kl) => d.autos.filter((c) => opVoorraad(c) && bestMatch(d.wensenByKlant[kl.id] || [], c, d.prijsOf(c))).length;
 
   return (
     <div className={`split${k ? ' has-detail' : ''}`}>
@@ -48,7 +48,7 @@ function KlantDossier({ k, onEdit }) {
   const [contact, setContact] = useState(false);
   const wensen = d.wensenByKlant[k.id] || [];
   const informed = new Set(d.contactmomenten.filter((x) => x.klant_id === k.id && x.auto_id).map((x) => x.auto_id));
-  const matches = d.autos.filter((c) => c.status !== 'verkocht').map((c) => ({ c, m: bestMatch(wensen, c, d.prijsOf(c)) })).filter((x) => x.m);
+  const matches = d.autos.filter(opVoorraad).map((c) => ({ c, m: bestMatch(wensen, c, d.prijsOf(c)) })).filter((x) => x.m);
   const contacten = d.contactmomenten.filter((x) => x.klant_id === k.id).sort((a, b) => b.datum.localeCompare(a.datum) || (b.aangemaakt || '').localeCompare(a.aangemaakt || ''));
   const del = async () => { if (await act((db) => db.remove('klanten', k.id), 'Klant verwijderd', ['klanten', 'zoekwensen', 'contactmomenten'])) setNav((n) => ({ ...n, klantId: null })); };
   const inform = (c) => act((db) => db.insert('contactmomenten', { klant_id: k.id, auto_id: c.id, uitkomst: 'geinformeerd', datum: today() }), 'Gemarkeerd als geïnformeerd', ['contactmomenten']);
@@ -204,7 +204,7 @@ export function ContactForm({ klantId, carId, onClose }) {
 export function Matches() {
   const { d, act, openCar, openKlant } = useApp();
   const [alle, setAlle] = useState(false);
-  const rows = d.autos.filter((c) => c.status !== 'verkocht')
+  const rows = d.autos.filter(opVoorraad)
     .map((c) => ({ c, ms: d.matchesForCar(c).filter((m) => alle || !m.informed) }))
     .filter((x) => x.ms.length);
   const inform = (k, c) => act((db) => db.insert('contactmomenten', { klant_id: k.id, auto_id: c.id, uitkomst: 'geinformeerd', datum: today() }), `${k.naam} gemarkeerd als geïnformeerd`, ['contactmomenten']);

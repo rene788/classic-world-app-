@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { db, TABLES } from './db';
 import { AppCtx } from './ui';
-import { ROLL, zietGeld, isBeheerder, magWerken, errText, bestMatch } from './lib';
+import { ROLL, zietGeld, isBeheerder, magWerken, errText, bestMatch, opVoorraad } from './lib';
 import Login, { NieuwWachtwoord } from './views/Login';
 import Overzicht from './views/Overzicht';
 import Voorraad from './views/Voorraad';
@@ -87,7 +87,7 @@ function Werkplaats({ uid, email }) {
     const informed = new Set(raw.contactmomenten.filter((x) => x.auto_id).map((x) => x.klant_id + '|' + x.auto_id));
     const prijsOf = (c) => { const f = finByAuto[c.id]; return f && f.vraagprijs != null ? Number(f.vraagprijs) : null; };
     const matchesForCar = (c) => {
-      if (c.status === 'verkocht') return [];
+      if (!opVoorraad(c)) return [];
       const out = [];
       for (const k of raw.klanten) {
         const m = bestMatch(wensenByKlant[k.id] || [], c, prijsOf(c));
@@ -130,7 +130,7 @@ function Werkplaats({ uid, email }) {
   const openMatches = zietGeld(rol) ? new Set(raw.autos.flatMap((c) => d.matchesForCar(c).filter((m) => !m.informed).map((m) => m.klant.id))).size : 0;
   const teKeuren = zietGeld(rol) ? raw.uren.filter((h) => h.status === 'ingediend').length : 0;
   const labels = {
-    overzicht: ['Overzicht'], voorraad: ['Voorraad', raw.autos.filter((c) => c.status !== 'verkocht').length],
+    overzicht: ['Overzicht'], voorraad: ['Voorraad', raw.autos.filter(opVoorraad).length],
     werk: ['Mijn werk'], matches: ['Matches', openMatches || null, true], klanten: ['Klanten', raw.klanten.length],
     aanbod: ['Gevonden aanbod', raw.aanbod.filter((x) => x.status === 'nieuw').length || null, true],
     bestellingen: ['Bestellingen'], uren: [rol === 'monteur' ? 'Mijn uren' : 'Uren', isBeheerder(rol) && teKeuren ? teKeuren : null, true],

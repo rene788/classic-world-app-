@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp, Modal, Field, Sel, DelBtn, Empty, useForm } from '../ui';
-import { ORDER_ST, carLabel, eur2, fmtD, norm, num, sum, today, safeName, rid } from '../lib';
+import { ORDER_ST, carLabel, eur2, fmtD, norm, num, sum, today, safeName, rid, opVoorraad } from '../lib';
 
 export default function Bestellingen() {
   const { d, openCar } = useApp();
@@ -76,7 +76,7 @@ export function BestellingForm({ order, preset, onClose }) {
   };
   const open = async () => { const m = await act((db) => db.urls([o.bestand])); if (m && m[o.bestand]) window.open(m[o.bestand], '_blank', 'noopener'); };
   const del = async () => { if (await act(async (db) => { await db.remove('bestellingen', o.id); if (o.bestand) { try { await db.removeFile(o.bestand); } catch { /* al weg */ } } }, 'Verwijderd', ['bestellingen'])) onClose(); };
-  const autos = d.autos.filter((c) => c.status !== 'verkocht' || c.id === f.auto_id);
+  const autos = d.autos.filter((c) => opVoorraad(c) || c.id === f.auto_id);
 
   return (
     <Modal title={order ? 'Bestelling' : 'Bestelling toevoegen'} onClose={onClose}

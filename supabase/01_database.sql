@@ -93,7 +93,7 @@ create table if not exists public.autos (
   bouwjaar       int,
   kleur          text,
   km             int,
-  status         text not null default 'binnen' check (status in ('onderweg','binnen','werkplaats','klaar','verkocht')),
+  status         text not null default 'binnen' check (status in ('onderweg','binnen','werkplaats','klaar','verkocht','geannuleerd')),
   locatie        text check (locatie is null or locatie in ('werkplaats','showroom','loods','extern','box1','box2','box3','box4','box5','box6','box7','box8','box9','box10')),
   locatie_info   text,
   datum_binnen   date default current_date,
@@ -299,7 +299,10 @@ create trigger gewijzigd before update on public.klanten for each row execute fu
 -- ---------- Beveiliging per rij (RLS) ----------
 -- Status 'onderweg' (nov 2026): ook toepassen op een bestaande database
 alter table public.autos drop constraint if exists autos_status_check;
-alter table public.autos add constraint autos_status_check check (status in ('onderweg','binnen','werkplaats','klaar','verkocht'));
+alter table public.autos add constraint autos_status_check check (status in ('onderweg','binnen','werkplaats','klaar','verkocht','geannuleerd'));
+-- Geannuleerde aankopen (nov 2026)
+alter table public.autos add column if not exists geannuleerd_op date;
+alter table public.autos add column if not exists annuleer_reden text;
 
 alter table public.profielen        enable row level security;
 alter table public.autos            enable row level security;

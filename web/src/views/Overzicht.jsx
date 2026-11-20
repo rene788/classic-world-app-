@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import { useApp } from '../ui';
 import KpiPaneel from './OverzichtDetail';
-import { LOCL, UITL, carCost, carLabel, carName, daysSince, eur, fmtD, hrs, periodRange, plusDays, sum, today } from '../lib';
+import { LOCL, UITL, carCost, carLabel, carName, daysSince, eur, fmtD, hrs, periodRange, plusDays, sum, today, opVoorraad } from '../lib';
 
 export default function Overzicht() {
   const { d, act, go, openCar, openKlant, beheerder } = useApp();
   const [kpi, setKpi] = useState(null);
-  const stock = d.autos.filter((c) => c.status !== 'verkocht');
+  const stock = d.autos.filter(opVoorraad);
   const [ma, mb] = periodRange('maand');
   const cs = stock.map((c) => carCost(c, d));
   const sold = d.autos.filter((c) => c.status === 'verkocht' && (c.verkoopdatum || '') >= ma && (c.verkoopdatum || '') <= mb).map((c) => carCost(c, d)).filter((x) => x.verkocht);
   const onderweg = stock.filter((c) => c.status === 'onderweg');
+  const geannuleerd = d.autos.filter((c) => c.status === 'geannuleerd').map((c) => ({ c, k: carCost(c, d) })).sort((a, b) => (b.c.geannuleerd_op || '').localeCompare(a.c.geannuleerd_op || ''));
   const dagen = stock.filter((c) => c.status !== 'onderweg').map((c) => daysSince(c.datum_binnen)).filter((x) => x != null);
   const gem = dagen.length ? Math.round(dagen.reduce((a, b) => a + b, 0) / dagen.length) : null;
   const urenMaand = sum(d.uren.filter((h) => h.datum >= ma && h.datum <= mb), (h) => h.uren);
@@ -27,6 +28,7 @@ export default function Overzicht() {
       if (al.length && dn < al.length) sig.push({ lvl: 'warn', car: c.id, t: `Afleverlijst nog niet af: ${carLabel(c)}`, s: `${dn} van ${al.length} punten gedaan` });
       continue;
     }
+    if (c.status === 'geannuleerd') continue;
     if (!c.voorraadnr) sig.push({ lvl: 'warn', car: c.id, t: `Geen voorraadnummer: ${carName(c)}`, s: 'Vul voorraad- en chassisnummer in' });
     const dg = c.status === 'onderweg' ? null : daysSince(c.datum_binnen);
     if (dg != null && dg > 90) sig.push({ lvl: 'bad', car: c.id, t: `${carLabel(c)} staat al ${dg} dagen op voorraad`, s: 'Overweeg prijs of presentatie te herzien' });
@@ -38,7 +40,7 @@ export default function Overzicht() {
   }
   for (const p of d.onderdelen) {
     const c = d.autoById[p.auto_id];
-    if (!c || c.status === 'verkocht') continue;
+    if (!c || !opVoorraad(c)) continue;
     if (p.status === 'besteld' && p.verwacht && p.verwacht < t) sig.push({ lvl: 'bad', car: c.id, t: `Onderdeel te laat: ${p.onderdeel}`, s: `${carLabel(c)} · verwacht ${fmtD(p.verwacht)}` });
     else if (p.status === 'nodig') sig.push({ lvl: 'info', car: c.id, t: `Nog te bestellen: ${p.onderdeel}`, s: carLabel(c) });
   }
@@ -131,6 +133,27 @@ export default function Overzicht() {
           <p className="hint" style={{ marginTop: 8 }}>Er passen meerdere auto's in een box. Vink "vol" aan zodra er niets meer bij kan.</p>
         </section>
       </div>
+      {geannuleerd.length > 0 && (
+        <section className="box" style={{ marginTop: 16 }}>
+          <h2>Geannuleerde aankopen <span className="count num">{geannuleerd.length}</span></h2>
+          <p className="note" style={{ marginBottom: 10 }}>Deze auto's tellen niet mee in de voorraad. Hier zie je wat er per auto was afgesproken en welke kosten er al gemaakt zijn.</p>
+          <div className="tw"><table className="ow-t">
+            <thead><tr><th>Auto</th><th className="mv">Geannuleerd op</th><th className="r">Inkoop</th><th className="r">Gemaakte kosten</th></tr></thead>
+            <tbody>{geannuleerd.map(({ c, k }) => (
+              <tr key={c.id} className="klik" onClick={() => openCar(c.id)}>
+                <td><button className="linkish" onClick={(e) => { e.stopPropagation(); openCar(c.id); }}>{carLabel(c)}</button>{c.annuleer_reden && <div className="note">{c.annuleer_reden}</div>}</td>
+                <td className="mv">{c.geannuleerd_op ? fmtD(c.geannuleerd_op) : '—'}</td>
+                <td className="r num">{k.inkoop ? eur(k.inkoop) : '—'}</td>
+                <td className="r num"><b>{k.kosten + k.facturen + k.arbeid ? eur(k.kosten + k.facturen + k.arbeid) : '—'}</b></td>
+              </tr>
+            ))}</tbody>
+            <tfoot><tr><td>Totaal</td><td className="mv" />
+              <td className="r num">{eur(sum(geannuleerd, (x) => x.k.inkoop)) || '€ 0'}</td>
+              <td className="r num"><b>{eur(sum(geannuleerd, (x) => x.k.kosten + x.k.facturen + x.k.arbeid)) || '€ 0'}</b></td></tr></tfoot>
+          </table></div>
+          <p className="hint" style={{ marginTop: 6 }}>Gemaakte kosten = transport, facturen en werkplaatsuren die al op de auto stonden. Die ben je mogelijk kwijt.</p>
+        </section>
+      )}
     </div>
   );
 }
