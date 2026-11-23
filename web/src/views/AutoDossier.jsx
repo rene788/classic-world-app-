@@ -126,12 +126,18 @@ const Fact = ({ k, v, mono }) => <div className="fact"><dt>{k}</dt><dd className
 function MatchesSec({ c }) {
   const { d, act, openKlant } = useApp();
   const ms = d.matchesForCar(c);
+  // Verbergen wordt per apparaat onthouden en geldt voor alle auto's
+  const [verborgen, setVerborgenRaw] = useState(() => { try { return localStorage.getItem('matches-verborgen') === '1'; } catch { return false; } });
+  const setVerborgen = (v) => { setVerborgenRaw(v); try { localStorage.setItem('matches-verborgen', v ? '1' : '0'); } catch { /* geen opslag */ } };
   if (!ms.length || !opVoorraad(c)) return null;
+  const open = ms.filter((m) => !m.informed).length;
   const inform = (k) => act((db) => db.insert('contactmomenten', { klant_id: k.id, auto_id: c.id, uitkomst: 'geinformeerd', datum: today() }), 'Gemarkeerd als geïnformeerd', ['contactmomenten']);
   return (
     <section className="sec">
-      <h3>Klanten die dit zoeken <span className="aux">{ms.filter((m) => !m.informed).length} nog te informeren</span></h3>
-      <div className="matchbox">
+      <h3 className="sec-h">Klanten die dit zoeken <span className="aux">{open ? `${open} nog te informeren` : 'iedereen geïnformeerd'}</span>
+        <button className="btn ghost sm" aria-expanded={!verborgen} onClick={() => setVerborgen(!verborgen)}>{verborgen ? `Toon (${ms.length})` : 'Verbergen'}</button>
+      </h3>
+      {!verborgen && <div className="matchbox">
         {ms.map((m) => (
           <div key={m.klant.id} className="m-item">
             <div className="m-who">
@@ -142,7 +148,7 @@ function MatchesSec({ c }) {
             {m.informed ? <span className="chip ok">Geïnformeerd</span> : <button className="btn sm" onClick={() => inform(m.klant)}>Geïnformeerd</button>}
           </div>
         ))}
-      </div>
+      </div>}
     </section>
   );
 }
