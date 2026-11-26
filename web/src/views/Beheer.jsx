@@ -35,7 +35,7 @@ export default function Beheer() {
           <ol style={{ margin: 0, paddingLeft: 20 }}>
             <li>Open <a href={`https://supabase.com/dashboard/project/${ref}/auth/users`} target="_blank" rel="noreferrer">Gebruikers in Supabase</a> en klik op <b>Add user → Create new user</b>.</li>
             <li>Vul het e-mailadres en een tijdelijk wachtwoord in, vink <b>Auto Confirm User</b> aan.</li>
-            <li>De collega verschijnt hier als <b>Geblokkeerd</b> en ziet nog niets. Kies de juiste rol en pas de naam aan.</li>
+            <li>De collega verschijnt hier als <b>Meekijker</b>. Kies de juiste rol en pas de naam aan.</li>
             <li>Geef de collega het wachtwoord door. Een eigen wachtwoord kiezen kan via "Wachtwoord vergeten?" op de inlogpagina.</li>
           </ol>
           <p className="hint">Iemand uit dienst? Zet de rol op <b>Geblokkeerd</b>; de gegevens en uren blijven bewaard.</p>
