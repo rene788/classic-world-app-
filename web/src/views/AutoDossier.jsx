@@ -27,6 +27,12 @@ export default function AutoDossier({ car, onEdit }) {
           <div style={{ flex: '1 1 220px', minWidth: 0 }}>
             <h2 className="d-title">{carName(c)}{c.bouwjaar ? `, ${c.bouwjaar}` : ''}</h2>
             <div className="d-sub"><Nr c={c} lg />{!klant && isCons(c) && <span className="chip cons">Consignatie</span>}<Plate c={c} lg /><Status s={c.status} /><Loc c={c} /></div>
+            {!klant && (c.toegewezen_aan || geld) && (
+              <div className="d-wie"><span className="note">Hele auto:</span>
+                {geld ? <Wie d={d} t={{ ...c, tekst: carName(c) }} onWijzig={(id) => act((db) => db.update('autos', c.id, { toegewezen_aan: id }), id ? `Hele auto voor ${naamVan(d, id)}` : 'Niemand meer verantwoordelijk', ['autos'])} />
+                  : <Wie d={d} t={c} />}
+              </div>
+            )}
             <DocLink c={c} edit={geld} />
           </div>
           <div className="d-actions">
@@ -157,8 +163,9 @@ function MatchesSec({ c }) {
 function Taken({ c }) {
   const { d, act, werker, geld, uid } = useApp();
   const [t, setT] = useState('');
-  const [m, setM] = useState('');
+  const [m, setM] = useState(c.toegewezen_aan || '');
   const [dl, setDl] = useState('');
+  useEffect(() => { setM(c.toegewezen_aan || ''); }, [c.id, c.toegewezen_aan]);
   const list = d.taken.filter((x) => x.auto_id === c.id).sort((a, b) => (a.klaar - b.klaar) || (a.volgorde - b.volgorde) || (a.aangemaakt || '').localeCompare(b.aangemaakt || ''));
   const done = list.filter((x) => x.klaar).length;
   const add = async (e) => {

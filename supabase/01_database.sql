@@ -328,6 +328,8 @@ alter table public.taken alter column auto_id drop not null;
 alter table public.taken add column if not exists toegewezen_aan uuid references public.profielen(id) on delete set null;
 alter table public.taken add column if not exists deadline date;
 create index if not exists taken_toegewezen on public.taken (toegewezen_aan) where not klaar;
+-- Hele auto aan een persoon: nieuwe taken bij deze auto krijgen standaard deze persoon
+alter table public.autos add column if not exists toegewezen_aan uuid references public.profielen(id) on delete set null;
 
 alter table public.profielen        enable row level security;
 alter table public.autos            enable row level security;

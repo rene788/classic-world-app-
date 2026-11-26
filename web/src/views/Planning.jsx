@@ -36,7 +36,7 @@ export function Deadline({ t }) {
 
 // Werk toevoegen: kies een auto, vink bestaande taken aan en/of voeg een nieuwe taak toe
 export function TaakForm({ preset = {}, onClose }) {
-  const { d, act } = useApp();
+  const { d, act, geld } = useApp();
   const autos = d.autos.filter((c) => opVoorraad(c) || c.id === preset.auto_id).sort((a, b) => String(b.voorraadnr || '').localeCompare(String(a.voorraadnr || ''), 'nl', { numeric: true }));
   const [tekst, setTekst] = useState('');
   const [uitleg, setUitleg] = useState('');
@@ -44,28 +44,32 @@ export function TaakForm({ preset = {}, onClose }) {
   const [wie, setWie] = useState(preset.toegewezen_aan || '');
   const [deadline, setDeadline] = useState('');
   const [gekozen, setGekozen] = useState([]);
+  const [hele, setHele] = useState(false);
   const [busy, setBusy] = useState(false);
   const bestaand = auto ? d.taken.filter((t) => t.auto_id === auto && !t.klaar).sort((a, b) => a.volgorde - b.volgorde) : [];
-  const kiesAuto = (v) => { setAuto(v); setGekozen([]); };
+  const kiesAuto = (v) => { setAuto(v); setGekozen([]); setHele(false); };
+  const heleAan = (v) => { setHele(v); setGekozen(v ? bestaand.map((t) => t.id) : []); };
+  const huidig = auto && d.autoById[auto]?.toegewezen_aan;
   const wissel = (id) => setGekozen((g) => (g.includes(id) ? g.filter((x) => x !== id) : [...g, id]));
-  const klaarOm = tekst.trim() || gekozen.length;
+  const klaarOm = tekst.trim() || gekozen.length || (hele && wie);
   const save = async () => {
     if (!klaarOm) return;
     setBusy(true);
     const ok = await act(async (db) => {
+      if (hele && auto) await db.update('autos', auto, { toegewezen_aan: wie || null });
       for (const id of gekozen) await db.update('taken', id, { toegewezen_aan: wie || null, ...(deadline ? { deadline } : {}) });
       if (tekst.trim()) {
         const volgorde = d.taken.filter((x) => (x.auto_id || null) === (auto || null)).length;
         await db.insert('taken', { auto_id: auto || null, tekst: tekst.trim(), uitleg: uitleg.trim() || null, toegewezen_aan: wie || null, deadline: deadline || null, volgorde });
       }
-    }, `${gekozen.length + (tekst.trim() ? 1 : 0) === 1 ? '1 taak' : `${gekozen.length + (tekst.trim() ? 1 : 0)} taken`}${wie ? ` voor ${naamVan(d, wie)}` : ''}`, ['taken']);
+    }, hele && auto ? `Hele auto voor ${naamVan(d, wie)}` : `${gekozen.length + (tekst.trim() ? 1 : 0) === 1 ? '1 taak' : `${gekozen.length + (tekst.trim() ? 1 : 0)} taken`}${wie ? ` voor ${naamVan(d, wie)}` : ''}`, ['taken', 'autos']);
     setBusy(false);
     if (ok) onClose();
   };
   return (
     <Modal title={wie ? `Werk voor ${naamVan(d, wie)}` : 'Werk toevoegen'} onClose={onClose}
       footer={<><button className="btn" onClick={onClose}>Annuleren</button><button className="btn primary" disabled={!klaarOm || busy} onClick={save}>
-        {gekozen.length && !tekst.trim() ? `${gekozen.length === 1 ? '1 taak' : `${gekozen.length} taken`} toewijzen` : 'Toevoegen'}</button></>}>
+        {hele ? 'Hele auto toewijzen' : gekozen.length && !tekst.trim() ? `${gekozen.length === 1 ? '1 taak' : `${gekozen.length} taken`} toewijzen` : 'Toevoegen'}</button></>}>
       <div className="grid2">
         <Field label="Voor wie"><Sel value={wie} onChange={setWie} empty="Nog niemand" options={werkers(d).map((p) => [p.id, p.naam || p.email])} /></Field>
         <Field label="Klaar voor (optioneel)"><input className="in" type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} /></Field>
@@ -76,13 +80,20 @@ export function TaakForm({ preset = {}, onClose }) {
           {autos.map((c) => { const n = d.taken.filter((t) => t.auto_id === c.id && !t.klaar).length; return <option key={c.id} value={c.id}>{carLabel(c)}{n ? ` · ${n} open` : ''}</option>; })}
         </select>
       </Field>
+      {auto && geld && (
+        <label className={`km-opt${hele ? ' sel' : ''}`}>
+          <input type="checkbox" checked={hele} disabled={!wie} onChange={(e) => heleAan(e.target.checked)} />
+          <span><b>Hele auto{wie ? ` aan ${naamVan(d, wie)}` : ''} geven</b>
+            <small>{wie ? 'Alle open taken gaan naar deze persoon, en nieuwe taken bij deze auto staan voortaan ook op zijn of haar naam.' : 'Kies eerst voor wie.'}{huidig && huidig !== wie ? ` Nu: ${naamVan(d, huidig)}.` : ''}</small></span>
+        </label>
+      )}
       {auto && (
         <div className="tk-kies">
           <div className="tk-kop"><b>Bestaande taken van deze auto</b>
-            {bestaand.length > 1 && <button type="button" className="linkish" onClick={() => setGekozen(gekozen.length === bestaand.length ? [] : bestaand.map((t) => t.id))}>{gekozen.length === bestaand.length ? 'Niets aanvinken' : 'Alles aanvinken'}</button>}</div>
+            {bestaand.length > 1 && !hele && <button type="button" className="linkish" onClick={() => setGekozen(gekozen.length === bestaand.length ? [] : bestaand.map((t) => t.id))}>{gekozen.length === bestaand.length ? 'Niets aanvinken' : 'Alles aanvinken'}</button>}</div>
           {!bestaand.length ? <p className="note" style={{ margin: 0 }}>Deze auto heeft nog geen open taken. Voeg hieronder een nieuwe toe.</p> : bestaand.map((t) => (
             <label key={t.id} className={`tk-r${gekozen.includes(t.id) ? ' sel' : ''}`}>
-              <input type="checkbox" checked={gekozen.includes(t.id)} onChange={() => wissel(t.id)} />
+              <input type="checkbox" checked={gekozen.includes(t.id)} disabled={hele} onChange={() => wissel(t.id)} />
               <span className="tk-t">{t.tekst}</span>
               <Wie d={d} t={t} />
             </label>
@@ -114,8 +125,10 @@ export default function Planning() {
   const toggle = (t) => act((db) => db.update('taken', t.id, { klaar: !t.klaar, klaar_door: !t.klaar ? uid : null, klaar_op: !t.klaar ? new Date().toISOString() : null }), t.klaar ? null : 'Taak afgevinkt', ['taken']);
   const wijs = (t, id) => act((db) => db.update('taken', t.id, { toegewezen_aan: id }), id ? `Toegewezen aan ${naamVan(d, id)}` : 'Toewijzing weggehaald', ['taken']);
   // Taken per auto bij elkaar; algemeen werk onderaan, auto met de vroegste datum bovenaan
-  const groepeer = (ts) => {
+  const groepeer = (ts, wie) => {
     const m = new Map();
+    // Auto's die in hun geheel aan deze persoon zijn gegeven, ook zonder open taken
+    if (wie) for (const c of d.autos.filter((x) => x.toegewezen_aan === wie && opVoorraad(x))) m.set(c.id, { id: c.id, c, taken: [] });
     for (const t of ts) { const k = t.auto_id || ''; if (!m.has(k)) m.set(k, { id: k, c: k ? d.autoById[k] : null, taken: [] }); m.get(k).taken.push(t); }
     return [...m.values()].sort((a, b) => (!a.id) - (!b.id));
   };
@@ -135,9 +148,11 @@ export default function Planning() {
         {kol.map((k) => (
           <section key={k.id || 'niemand'} className={`plan-k${k.id === uid ? ' ik' : ''}${k.id ? '' : ' niemand'}`}>
             <h3>{k.naam}{k.id === uid ? ' (jij)' : ''} <span className="count num">{k.taken.filter((t) => !t.klaar).length}</span></h3>
-            {!k.taken.length ? <p className="note">Geen werk.</p> : groepeer(k.taken).map((g) => (
+            {!groepeer(k.taken, k.id).length ? <p className="note">Geen werk.</p> : groepeer(k.taken, k.id).map((g) => (
               <div key={g.id || 'alg'} className="pg">
-                <div className="pg-h">{g.c ? <button className="linkish" onClick={() => openCar(g.c.id)}>{carLabel(g.c)}</button> : <span>Algemeen werk</span>}</div>
+                <div className="pg-h">{g.c ? <button className="linkish" onClick={() => openCar(g.c.id)}>{carLabel(g.c)}</button> : <span>Algemeen werk</span>}
+                  {g.c && k.id && g.c.toegewezen_aan === k.id && <span className="chip hele">hele auto</span>}</div>
+                {g.c && !g.taken.length && <p className="note" style={{ margin: '0 2px' }}>Geen open taken.</p>}
                 {g.taken.map((t) => (
                   <div key={t.id} className={`pk${t.klaar ? ' done' : ''}${teLaat(t) ? ' laat' : ''}`}>
                     <input type="checkbox" checked={!!t.klaar} disabled={!werker} onChange={() => toggle(t)} aria-label={`Taak ${t.tekst} afvinken`} />
