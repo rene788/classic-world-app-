@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useApp, Modal, Field, Sel, Plate, Nr, Empty } from '../ui';
+import { Wie, Deadline } from './Planning';
 import { carLabel, carName, elapsed, fmtD, hrs, sum, today, numDec, periodRange, opVoorraad, isCons } from '../lib';
 
 export default function MijnWerk() {
-  const { d, act, uid, me, werker, openCar } = useApp();
+  const { d, act, uid, me, werker, openCar, go } = useApp();
   const [form, setForm] = useState(false);
-  const [alleen, setAlleen] = useState(false);
+  const [alleen, setAlleen] = useState(true);
   const [, tick] = useState(0);
   useEffect(() => { const t = setInterval(() => tick((n) => n + 1), 30000); return () => clearInterval(t); }, []);
 
@@ -32,8 +33,12 @@ export default function MijnWerk() {
   const week = sum(mijn.filter((h) => h.datum >= wa && h.datum <= wb), (h) => h.uren);
 
   const naam = (me?.naam || '').toLowerCase();
-  const open = d.taken.filter((t) => !t.klaar && (!alleen || (t.monteur || '').toLowerCase().includes(naam)));
-  const perAuto = actief.map((c) => ({ c, taken: open.filter((t) => t.auto_id === c.id) })).filter((x) => x.taken.length);
+  const vanMij = (t) => t.toegewezen_aan === uid || (!t.toegewezen_aan && naam && (t.monteur || '').toLowerCase().includes(naam));
+  const volg = (a, b) => (a.deadline || '9999').localeCompare(b.deadline || '9999') || (a.volgorde - b.volgorde);
+  const open = d.taken.filter((t) => !t.klaar && (!alleen || vanMij(t))).sort(volg);
+  const algemeen = open.filter((t) => !t.auto_id);
+  const perAuto = actief.map((c) => ({ c, taken: open.filter((t) => t.auto_id === c.id) })).filter((x) => x.taken.length)
+    .sort((a, b) => volg(a.taken[0], b.taken[0]));
   const toggle = (t) => act((db) => db.update('taken', t.id, { klaar: !t.klaar, klaar_door: !t.klaar ? uid : null, klaar_op: !t.klaar ? new Date().toISOString() : null }), t.klaar ? null : 'Taak afgevinkt', ['taken']);
 
   if (!werker) return <Empty title="Geen werk">Je account kan geen uren of taken bijhouden.</Empty>;
@@ -76,7 +81,18 @@ export default function MijnWerk() {
         <h2 style={{ fontFamily: 'var(--f-display)', fontSize: 18, margin: 0 }}>Open taken</h2>
         <label className="chk" style={{ marginLeft: 'auto' }}><input type="checkbox" checked={alleen} onChange={(e) => setAlleen(e.target.checked)} /> Alleen voor mij</label>
       </div>
-      {!perAuto.length ? <div className="pane"><Empty title="Geen open taken">{alleen ? 'Er staan geen taken op jouw naam.' : 'Alle taken zijn af.'}</Empty></div>
+      {algemeen.length > 0 && (
+        <div className="wcard">
+          <div className="wcard-h"><h3>Algemeen werk</h3><div className="d-actions"><button className="btn sm" onClick={() => go('planning')}>Planning</button></div></div>
+          {algemeen.map((t) => (
+            <label key={t.id} className="wtodo">
+              <input type="checkbox" checked={!!t.klaar} onChange={() => toggle(t)} />
+              <span>{t.tekst}{t.uitleg && <span className="note"> — {t.uitleg}</span>} <Deadline t={t} />{!alleen && <Wie d={d} t={t} />}</span>
+            </label>
+          ))}
+        </div>
+      )}
+      {!perAuto.length && !algemeen.length ? <div className="pane"><Empty title="Geen open taken">{alleen ? 'Er staan geen taken op jouw naam.' : 'Alle taken zijn af.'}</Empty></div>
         : perAuto.map(({ c, taken }) => (
           <div key={c.id} className="wcard">
             <div className="wcard-h">
@@ -86,7 +102,7 @@ export default function MijnWerk() {
             {taken.map((t) => (
               <label key={t.id} className="wtodo">
                 <input type="checkbox" checked={!!t.klaar} onChange={() => toggle(t)} />
-                <span>{t.tekst}{t.monteur && <span className="chip" style={{ marginLeft: 8 }}>{t.monteur}</span>}</span>
+                <span>{t.tekst}{t.uitleg && <span className="note"> — {t.uitleg}</span>} <Deadline t={t} />{!alleen && <Wie d={d} t={t} />}</span>
               </label>
             ))}
           </div>

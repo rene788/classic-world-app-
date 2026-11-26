@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useApp, Modal, Sel, Plate, Nr, Status, Loc, DelBtn, Field, useUrls, CarFoto, DocLink } from '../ui';
+import { werkers, Wie, Deadline, naamVan } from './Planning';
 import {
   STATUSES, PART_ST, KOST_SOORT, ORDER_ST, FASES, BESTEMMING, CHECK_DEFAULT, UITL, carName, fmtD, eur, eur2, km, hrs, sum,
   daysSince, num, today, carCost, wishText, shrink, safeName, rid, thumb, opVoorraad, eurVrij, isCons, CONS_AFSPRAAK,
@@ -157,13 +158,15 @@ function Taken({ c }) {
   const { d, act, werker, geld, uid } = useApp();
   const [t, setT] = useState('');
   const [m, setM] = useState('');
+  const [dl, setDl] = useState('');
   const list = d.taken.filter((x) => x.auto_id === c.id).sort((a, b) => (a.klaar - b.klaar) || (a.volgorde - b.volgorde) || (a.aangemaakt || '').localeCompare(b.aangemaakt || ''));
   const done = list.filter((x) => x.klaar).length;
   const add = async (e) => {
     e.preventDefault();
     if (!t.trim()) return;
-    if (await act((db) => db.insert('taken', { auto_id: c.id, tekst: t.trim(), monteur: m.trim() || null, volgorde: list.length }), null, ['taken'])) { setT(''); }
+    if (await act((db) => db.insert('taken', { auto_id: c.id, tekst: t.trim(), toegewezen_aan: m || null, deadline: dl || null, volgorde: list.length }), m ? `Taak voor ${naamVan(d, m)}` : null, ['taken'])) { setT(''); setDl(''); }
   };
+  const wijs = (x, id) => act((db) => db.update('taken', x.id, { toegewezen_aan: id }), null, ['taken']);
   const toggle = (x) => act((db) => db.update('taken', x.id, { klaar: !x.klaar, klaar_door: !x.klaar ? uid : null, klaar_op: !x.klaar ? new Date().toISOString() : null }), null, ['taken']);
   return (
     <section className="sec">
@@ -171,7 +174,8 @@ function Taken({ c }) {
       {werker && (
         <form className="add" onSubmit={add}>
           <input className="in" value={t} onChange={(e) => setT(e.target.value)} placeholder="Nieuwe taak, bijv. remmen nalopen" aria-label="Nieuwe taak" />
-          <input className="in" style={{ flex: '0 1 150px' }} value={m} onChange={(e) => setM(e.target.value)} placeholder="Monteur (optioneel)" aria-label="Monteur" />
+          <Sel value={m} onChange={setM} empty="Voor wie?" options={werkers(d).map((p) => [p.id, p.naam || p.email])} aria-label="Voor wie" style={{ flex: '0 1 150px' }} />
+          <input className="in" type="date" style={{ flex: '0 1 150px' }} value={dl} onChange={(e) => setDl(e.target.value)} aria-label="Klaar voor (optioneel)" title="Klaar voor (optioneel)" />
           <button className="btn">Toevoegen</button>
         </form>
       )}
@@ -179,7 +183,8 @@ function Taken({ c }) {
         <div key={x.id} className={`todo${x.klaar ? ' done' : ''}`}>
           <input type="checkbox" checked={!!x.klaar} disabled={!werker} onChange={() => toggle(x)} aria-label={`Taak ${x.tekst} afvinken`} />
           <span className="t">{x.tekst}{x.uitleg && <span className="note"> — {x.uitleg}</span>}</span>
-          {x.monteur && <span className="chip">{x.monteur}</span>}
+          <Deadline t={x} />
+          {x.klaar ? null : werker ? <Wie d={d} t={x} onWijzig={(id) => wijs(x, id)} /> : <Wie d={d} t={x} />}
           {x.klaar && x.klaar_door && <span className="note">✓ {d.names[x.klaar_door] || ''}{x.klaar_op ? ` · ${fmtD(x.klaar_op)}` : ''}</span>}
           {geld && <DelBtn x onConfirm={() => act((db) => db.remove('taken', x.id), null, ['taken'])} />}
         </div>

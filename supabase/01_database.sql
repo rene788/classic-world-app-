@@ -323,6 +323,11 @@ alter table public.auto_financien add constraint auto_financien_cons_afspraak_ch
 alter table public.auto_financien add column if not exists cons_waarde numeric;
 alter table public.auto_financien add column if not exists cons_tot date;
 alter table public.auto_financien add column if not exists cons_afgerekend boolean not null default false;
+-- Planning (nov 2026): taken aan een persoon, met optionele datum, ook zonder auto
+alter table public.taken alter column auto_id drop not null;
+alter table public.taken add column if not exists toegewezen_aan uuid references public.profielen(id) on delete set null;
+alter table public.taken add column if not exists deadline date;
+create index if not exists taken_toegewezen on public.taken (toegewezen_aan) where not klaar;
 
 alter table public.profielen        enable row level security;
 alter table public.autos            enable row level security;

@@ -35,9 +35,10 @@ const S = {
     { auto_id: 'a4', inkoopprijs: 70000, vraagprijs: 95000, verkoopprijs: 92000, regeling: 'marge' },
   ],
   taken: [
-    { id: 't1', auto_id: 'a1', tekst: 'Remmen rondom nalopen', monteur: 'Kees', klaar: false, volgorde: 0, aangemaakt: d0(10) },
+    { id: 't1', auto_id: 'a1', tekst: 'Remmen rondom nalopen', toegewezen_aan: 'u-mon', deadline: d0(2), klaar: false, volgorde: 0, aangemaakt: d0(10) },
     { id: 't2', auto_id: 'a1', tekst: 'Kap afstellen', monteur: null, klaar: true, klaar_door: 'u-mon', klaar_op: d0(3), volgorde: 1, aangemaakt: d0(10) },
     { id: 't3', auto_id: 'a3', tekst: 'Conditierapport maken', monteur: 'Kees', klaar: false, volgorde: 0, aangemaakt: d0(4) },
+    { id: 't4', auto_id: null, tekst: 'Onderdelen ophalen bij Rose Passion', toegewezen_aan: 'u-ver', deadline: d0(-1), klaar: false, volgorde: 0, aangemaakt: d0(1) },
   ],
   onderdelen: [
     { id: 'o1', auto_id: 'a1', onderdeel: 'Remschijven voor', leverancier: 'Rose Passion', status: 'besteld', verwacht: d0(2), aangemaakt: d0(8) },
