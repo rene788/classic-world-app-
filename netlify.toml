@@ -6,15 +6,3 @@
 
 [build.environment]
   NODE_VERSION = "20"
-
-# Beveiligingsheaders voor elke pagina
-[[headers]]
-  for = "/*"
-  [headers.values]
-    Strict-Transport-Security = "max-age=63072000; includeSubDomains"
-    X-Frame-Options = "DENY"
-    X-Content-Type-Options = "nosniff"
-    Referrer-Policy = "strict-origin-when-cross-origin"
-    Permissions-Policy = "geolocation=(), microphone=(), payment=(), usb=()"
-    X-Robots-Tag = "noindex, nofollow"
-    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://ximltwatxogbittyzzba.supabase.co; media-src 'self' blob: https://ximltwatxogbittyzzba.supabase.co; connect-src 'self' https://ximltwatxogbittyzzba.supabase.co wss://ximltwatxogbittyzzba.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"

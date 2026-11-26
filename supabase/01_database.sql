@@ -40,7 +40,7 @@ begin
   values (
     new.id, new.email,
     coalesce(nullif(new.raw_user_meta_data->>'naam',''), split_part(coalesce(new.email,''),'@',1)),
-    case when exists (select 1 from public.profielen where rol = 'beheerder') then 'geblokkeerd' else 'beheerder' end
+    case when exists (select 1 from public.profielen where rol = 'beheerder') then 'meekijker' else 'beheerder' end
   )
   on conflict (id) do nothing;
   return new;
@@ -445,15 +445,3 @@ end $$;
 
 -- Klaar. Controle: onderstaande regel toont alle tabellen met beveiliging aan.
 select tablename, rowsecurity as beveiligd from pg_tables where schemaname = 'public' order by tablename;
-
--- Beveiliging (nov 2026): vaste search_path en triggerfuncties niet via de API aanroepbaar
-alter function public.is_beheerder() set search_path = public;
-alter function public.ziet_geld() set search_path = public;
-alter function public.mag_werken() set search_path = public;
-alter function public.heeft_toegang() set search_path = public;
-alter function public.zet_gewijzigd() set search_path = public;
-revoke execute on function public.bewaak_beheerder() from public, anon, authenticated;
-revoke execute on function public.bewaak_rol() from public, anon, authenticated;
-revoke execute on function public.nieuw_profiel() from public, anon, authenticated;
-revoke execute on function public.mijn_rol() from public, anon;
-grant execute on function public.mijn_rol() to authenticated;
