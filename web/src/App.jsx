@@ -6,6 +6,7 @@ import Login, { NieuwWachtwoord } from './views/Login';
 import Overzicht from './views/Overzicht';
 import Voorraad from './views/Voorraad';
 import MijnWerk from './views/MijnWerk';
+import Planning from './views/Planning';
 import Uren from './views/Uren';
 import Klanten, { Matches } from './views/Klanten';
 import Bestellingen from './views/Bestellingen';
@@ -115,10 +116,10 @@ function Werkplaats({ uid, email }) {
   zetVerbergBedragen(!!klant);
   const showroom = klant && klant.modus !== 'hele';
   const rolTabs = !rol ? [] : zietGeld(rol)
-    ? ['overzicht', 'voorraad', 'werk', 'matches', 'klanten', 'aanbod', 'bestellingen', 'uren', ...(isBeheerder(rol) ? ['beheer'] : [])]
-    : rol === 'monteur' ? ['werk', 'voorraad', 'uren'] : rol === 'meekijker' ? ['voorraad'] : [];
+    ? ['overzicht', 'voorraad', 'werk', 'planning', 'matches', 'klanten', 'aanbod', 'bestellingen', 'uren', ...(isBeheerder(rol) ? ['beheer'] : [])]
+    : rol === 'monteur' ? ['werk', 'planning', 'voorraad', 'uren'] : rol === 'meekijker' ? ['voorraad'] : [];
   // Klantmodus: showroom = alleen voorraad; hele app = alles behalve tabbladen met klantgegevens of inkoopprijzen
-  const tabs = showroom ? ['voorraad'] : klant ? rolTabs.filter((t) => !['klanten', 'matches', 'beheer', 'aanbod', 'bestellingen'].includes(t)) : rolTabs;
+  const tabs = showroom ? ['voorraad'] : klant ? rolTabs.filter((t) => !['klanten', 'matches', 'beheer', 'aanbod', 'bestellingen', 'planning'].includes(t)) : rolTabs;
   const view = tabs.includes(nav.view) ? nav.view : tabs[0];
 
   const go = useCallback((v, extra = {}) => { setNav((n) => ({ ...n, view: v, ...extra })); window.scrollTo(0, 0); }, []);
@@ -140,7 +141,7 @@ function Werkplaats({ uid, email }) {
   const teKeuren = zietGeld(rol) ? raw.uren.filter((h) => h.status === 'ingediend').length : 0;
   const labels = {
     overzicht: ['Overzicht'], voorraad: ['Voorraad', showroom ? raw.autos.filter((c) => klant.statussen.includes(c.status)).length : raw.autos.filter(opVoorraad).length],
-    werk: ['Mijn werk'], matches: ['Matches', openMatches || null, true], klanten: ['Klanten', raw.klanten.length],
+    werk: ['Mijn werk', raw.taken.filter((t) => !t.klaar && t.toegewezen_aan === uid).length || null], planning: ['Planning'], matches: ['Matches', openMatches || null, true], klanten: ['Klanten', raw.klanten.length],
     aanbod: ['Gevonden aanbod', raw.aanbod.filter((x) => x.status === 'nieuw').length || null, true],
     bestellingen: ['Bestellingen'], uren: [rol === 'monteur' ? 'Mijn uren' : 'Uren', isBeheerder(rol) && teKeuren ? teKeuren : null, true],
     beheer: ['Beheer'],
@@ -149,7 +150,7 @@ function Werkplaats({ uid, email }) {
   const ctx = { d, raw, me, rol, uid, email, act, reload, toast, go, openCar, openKlant, nav, setNav,
     geld: zietGeld(rol) && !klant, beheerder: isBeheerder(rol) && !klant, werker: magWerken(rol) && !klant, klant, showroom };
 
-  const View = { overzicht: Overzicht, voorraad: Voorraad, werk: MijnWerk, matches: Matches, klanten: Klanten,
+  const View = { overzicht: Overzicht, voorraad: Voorraad, werk: MijnWerk, planning: Planning, matches: Matches, klanten: Klanten,
     aanbod: Aanbod, bestellingen: Bestellingen, uren: Uren, beheer: Beheer }[view];
 
   return (

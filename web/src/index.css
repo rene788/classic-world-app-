@@ -338,3 +338,25 @@ button.kpi:hover,button.kpi:focus-visible{border-color:var(--accent);box-shadow:
 
 .sec-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .sec-h .btn{margin-left:auto}
+
+/* planning en toewijzen */
+.wie{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink);white-space:nowrap;position:relative}
+.wie i{font-style:normal;display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:10.5px;font-weight:700;letter-spacing:.02em;flex:none}
+.wie.leeg{color:var(--muted)}
+.wie.leeg i{background:var(--surface-2);color:var(--muted);border:1px dashed var(--line)}
+.wie.kies select{appearance:none;-webkit-appearance:none;border:1px solid transparent;background:transparent;font:inherit;color:inherit;padding:2px 18px 2px 2px;border-radius:6px;cursor:pointer;max-width:140px;background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);background-position:calc(100% - 9px) 55%,calc(100% - 5px) 55%;background-size:4px 4px;background-repeat:no-repeat}
+.wie.kies select:hover,.wie.kies select:focus-visible{border-color:var(--line);outline:none}
+.plan{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;align-items:start}
+.plan-k{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.plan-k.ik{border-color:var(--accent)}
+.plan-k.niemand{background:var(--surface-2)}
+.plan-k h3{margin:0;font-size:15px;display:flex;align-items:center;gap:8px}
+.pk{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.pk.laat{border-color:var(--danger)}
+.pk.done .pk-t{text-decoration:line-through;color:var(--muted)}
+.pk input{margin-top:3px}
+.pk-b{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+.pk-t{font-weight:600;font-size:13.5px;overflow-wrap:anywhere}
+.pk-m{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12.5px}
+.pk-add{align-self:flex-start}
+.wtodo .wie,.wtodo .chip{margin-left:6px}
