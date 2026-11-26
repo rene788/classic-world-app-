@@ -191,7 +191,7 @@ function Werkplaats({ uid, email }) {
         {loadErr && <div className="banner warn">{loadErr}</div>}
         {!loaded ? <div className="pane"><div className="empty"><p>Gegevens laden…</p></div></div>
           : !me ? <div className="pane"><div className="empty"><h2>Je account heeft nog geen profiel</h2><p>Vraag de beheerder om je account opnieuw aan te maken, of voer het database-script nog een keer uit.</p></div></div>
-          : rol === 'geblokkeerd' ? <div className="pane"><div className="empty"><h2>Geen toegang</h2><p>Je account is geblokkeerd. Neem contact op met de beheerder.</p></div></div>
+          : rol === 'geblokkeerd' ? <div className="pane"><div className="empty"><h2>Nog geen toegang</h2><p>Je account wacht op toegang, of is geblokkeerd. De beheerder geeft je een rol bij Beheer; ververs daarna deze pagina.</p></div></div>
           : <>
             {rol === 'meekijker' && !klant && <div className="banner">Je kijkt mee zonder rechten om iets aan te passen. Vraag de beheerder om je een rol te geven.</div>}
             <View />
