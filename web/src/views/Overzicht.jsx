@@ -24,6 +24,8 @@ export default function Overzicht() {
   const t = today();
   const wacht = d.uren.filter((h) => h.status === 'ingediend').length;
   const laat = d.taken.filter((x) => !x.klaar && x.deadline && x.deadline < t && (!x.auto_id || (d.autoById[x.auto_id] && opVoorraad(d.autoById[x.auto_id]))));
+  const vsOpen = d.voorstellen.filter((x) => x.voorstel === 'open').length;
+  if (!klant && vsOpen) sig.push({ lvl: 'warn', go: () => go('planning'), t: `${vsOpen} voorstel${vsOpen > 1 ? 'len' : ''} van monteurs wacht${vsOpen > 1 ? 'en' : ''} op akkoord`, s: 'Keur goed of wijs af bij Planning' });
   if (!klant && laat.length) sig.push({ lvl: 'bad', go: () => go('planning'), t: `${laat.length} ta${laat.length > 1 ? 'ken zijn' : 'ak is'} over de datum`, s: 'Bekijk ze bij Planning' });
   if (beheerder && wacht) sig.push({ lvl: 'warn', go: () => go('uren'), t: `${wacht} urenregel${wacht > 1 ? 's wachten' : ' wacht'} op goedkeuring`, s: 'Keur ze goed bij Uren' });
   for (const c of d.autos) {

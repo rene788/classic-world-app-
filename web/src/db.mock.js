@@ -38,6 +38,7 @@ const S = {
     { id: 't1', auto_id: 'a1', tekst: 'Remmen rondom nalopen', toegewezen_aan: 'u-mon', deadline: d0(2), klaar: false, volgorde: 0, aangemaakt: d0(10) },
     { id: 't2', auto_id: 'a1', tekst: 'Kap afstellen', monteur: null, klaar: true, klaar_door: 'u-mon', klaar_op: d0(3), volgorde: 1, aangemaakt: d0(10) },
     { id: 't3', auto_id: 'a3', tekst: 'Conditierapport maken', monteur: 'Kees', klaar: false, volgorde: 0, aangemaakt: d0(4) },
+    { id: 't5', auto_id: 'a3', tekst: 'Koppelingsplaten vervangen', uitleg: 'Koppeling slipt bij optrekken in 3e', voorstel: 'open', voorgesteld_door: 'u-mon', schatting_uren: 6, schatting_eur: 420, klaar: false, volgorde: 1, aangemaakt: d0(1) },
     { id: 't4', auto_id: null, tekst: 'Onderdelen ophalen bij Rose Passion', toegewezen_aan: 'u-ver', deadline: d0(-1), klaar: false, volgorde: 0, aangemaakt: d0(1) },
   ],
   onderdelen: [
