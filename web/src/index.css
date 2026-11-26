@@ -370,3 +370,6 @@ button.kpi:hover,button.kpi:focus-visible{border-color:var(--accent);box-shadow:
 .tk-r{display:flex;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);cursor:pointer}
 .tk-r.sel{border-color:var(--accent);background:var(--accent-soft)}
 .tk-t{flex:1;min-width:0}
+
+.chip.hele{background:var(--accent);color:#fff;font-weight:600;margin-left:6px}
+.d-wie{display:flex;gap:8px;align-items:center;margin-top:8px}

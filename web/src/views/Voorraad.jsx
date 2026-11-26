@@ -3,6 +3,7 @@ import { useApp, Modal, Field, Sel, Plate, Nr, Status, Loc, Empty, useForm, useU
 import { STATUSES, LOCATIES, BESTEMMING, carName, norm, num, int, nextNr, today, eur, eurVrij, daysSince, isCons, consNr, opVoorraad } from '../lib';
 import AutoDossier from './AutoDossier';
 import KlantDossier from './KlantDossier';
+import { Wie } from './Planning';
 
 export default function Voorraad() {
   const { d, nav, setNav, geld, klant, showroom } = useApp();
@@ -51,7 +52,7 @@ export default function Voorraad() {
                       <Plate c={c} />{c.kleur && <span className="chip">{c.kleur}</span>}
                       {klant.prijs && d.prijsOf(c) ? <span className="chip">{eurVrij(d.prijsOf(c))}</span> : null}
                     </> : <>
-                    <Nr c={c} />{!klant && isCons(c) && <span className="chip cons">Consignatie</span>}<Plate c={c} /><Loc c={c} />
+                    <Nr c={c} />{!klant && isCons(c) && <span className="chip cons">Consignatie</span>}<Plate c={c} /><Loc c={c} />{c.toegewezen_aan && <Wie d={d} t={c} />}
                     {open > 0 && <span className="chip">{open} open</span>}
                     {matches > 0 && <span className="chip match">{matches} match{matches > 1 ? 'es' : ''}</span>}
                     {geld && d.prijsOf(c) ? <span className="chip">{eur(d.prijsOf(c))}</span> : null}

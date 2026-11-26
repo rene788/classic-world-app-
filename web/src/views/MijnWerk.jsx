@@ -37,8 +37,8 @@ export default function MijnWerk() {
   const volg = (a, b) => (a.deadline || '9999').localeCompare(b.deadline || '9999') || (a.volgorde - b.volgorde);
   const open = d.taken.filter((t) => !t.klaar && (!alleen || vanMij(t))).sort(volg);
   const algemeen = open.filter((t) => !t.auto_id);
-  const perAuto = actief.map((c) => ({ c, taken: open.filter((t) => t.auto_id === c.id) })).filter((x) => x.taken.length)
-    .sort((a, b) => volg(a.taken[0], b.taken[0]));
+  const perAuto = actief.map((c) => ({ c, taken: open.filter((t) => t.auto_id === c.id) })).filter((x) => x.taken.length || (alleen && x.c.toegewezen_aan === uid))
+    .sort((a, b) => (!a.taken.length) - (!b.taken.length) || (a.taken.length && b.taken.length ? volg(a.taken[0], b.taken[0]) : 0));
   const toggle = (t) => act((db) => db.update('taken', t.id, { klaar: !t.klaar, klaar_door: !t.klaar ? uid : null, klaar_op: !t.klaar ? new Date().toISOString() : null }), t.klaar ? null : 'Taak afgevinkt', ['taken']);
 
   if (!werker) return <Empty title="Geen werk">Je account kan geen uren of taken bijhouden.</Empty>;
@@ -99,6 +99,7 @@ export default function MijnWerk() {
               <h3>{carName(c)}</h3>
               <div className="d-actions"><Nr c={c} /><Plate c={c} /><button className="btn sm" onClick={() => openCar(c.id)}>Dossier</button></div>
             </div>
+            {!taken.length && <p className="note" style={{ margin: '4px 0 0' }}>Deze auto is aan jou gegeven. Er staan nu geen open taken.</p>}
             {taken.map((t) => (
               <label key={t.id} className="wtodo">
                 <input type="checkbox" checked={!!t.klaar} onChange={() => toggle(t)} />
