@@ -360,3 +360,13 @@ button.kpi:hover,button.kpi:focus-visible{border-color:var(--accent);box-shadow:
 .pk-m{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12.5px}
 .pk-add{align-self:flex-start}
 .wtodo .wie,.wtodo .chip{margin-left:6px}
+
+.pg{display:flex;flex-direction:column;gap:6px}
+.pg + .pg{margin-top:4px}
+.pg-h{font-size:12.5px;font-weight:600;color:var(--muted);padding:2px 2px 0}
+.pg-h .linkish{font-size:12.5px}
+.tk-kies{display:flex;flex-direction:column;gap:6px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2)}
+.tk-kop{display:flex;justify-content:space-between;align-items:center;font-size:13px}
+.tk-r{display:flex;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);cursor:pointer}
+.tk-r.sel{border-color:var(--accent);background:var(--accent-soft)}
+.tk-t{flex:1;min-width:0}
