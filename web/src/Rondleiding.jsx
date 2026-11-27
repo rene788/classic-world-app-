@@ -7,7 +7,7 @@ const STAPPEN = [
   { view: 'voorraad', t: 'Voorraad', x: 'Alle auto\'s, als kaarten of als lijst. Tik op een auto voor het dossier met gegevens, werkplaats, foto\'s, kosten en verkoop.' },
   { view: 'werk', t: 'Mijn werk', x: 'De taken die aan jou zijn gegeven. Vink af wat klaar is en klok je uren op een auto.' },
   { view: 'werkplaats', t: 'Werkplaats', x: 'Alles wat in de werkplaats staat in één tabel: wat er moet gebeuren, wie eraan werkt en op welke onderdelen we wachten. Klantreparaties staan er ook in.' },
-  { view: 'planning', t: 'Planning', x: 'Werk verdelen per persoon of per auto. Monteurs kunnen werk voorstellen; verkoop of beheer geeft akkoord.' },
+  { view: 'planning', t: 'Planning', x: 'Het weekbord: per persoon een rij, per dag een kolom. Sleep werk naar een andere dag of persoon, of tik op een leeg vak om werk toe te voegen. Monteurs stellen werk voor; verkoop of beheer geeft akkoord.' },
   { view: 'reparaties', t: 'Reparaties', x: 'Auto\'s van klanten die voor onderhoud of reparatie binnenkomen, los van de eigen voorraad. Met status, wie het oppakt en wanneer het klaar moet zijn.' },
   { view: 'bestellingen', t: 'Bestellingen', x: 'Facturen en bestellingen. Schakel naar "Per leverancier" om te zien wat er bij elke leverancier nog openstaat en zet het met één tik op ontvangen.' },
   { view: 'matches', t: 'Matches', x: 'Klanten met een zoekwens die past bij een auto op voorraad, en of ze al geïnformeerd zijn.' },

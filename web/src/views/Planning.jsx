@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useApp, Modal, Field, Sel, Empty } from '../ui';
 import { carLabel, fmtD, today, opVoorraad, norm, numDec, eur, hrs } from '../lib';
+import { WeekBord, PerAuto } from './PlanBord';
 
 // ---------- gedeelde bouwstenen voor taken met een persoon ----------
 
@@ -85,7 +86,7 @@ export function TaakForm({ preset = {}, onClose }) {
   const [uitleg, setUitleg] = useState('');
   const [auto, setAuto] = useState(preset.auto_id || '');
   const [wie, setWie] = useState(preset.toegewezen_aan || '');
-  const [deadline, setDeadline] = useState('');
+  const [deadline, setDeadline] = useState(preset.deadline || '');
   const [gekozen, setGekozen] = useState([]);
   const [hele, setHele] = useState(false);
   const [su, setSu] = useState('');
@@ -169,6 +170,8 @@ export default function Planning() {
   const [form, setForm] = useState(null);
   const [afgerond, setAfgerond] = useState(false);
   const [q, setQ] = useState('');
+  const [weergave, setWeergaveRaw] = useState(() => { try { return localStorage.getItem('planning-weergave') || 'week'; } catch { return 'week'; } });
+  const setWeergave = (v) => { setWeergaveRaw(v); try { localStorage.setItem('planning-weergave', v); } catch { /* geen opslag */ } };
   // Auto zoeken: op voorraadnummer, merk, model, type, kenteken of chassis
   const zoek = norm(q);
   const gevonden = zoek ? d.autos.filter((c) => opVoorraad(c) && norm([c.voorraadnr, c.merk, c.model, c.type, c.kenteken, c.chassisnr, c.kleur].join(' ')).includes(zoek)) : null;
@@ -198,11 +201,21 @@ export default function Planning() {
   };
   const open = taken.filter((t) => !t.klaar).length;
   const laat = taken.filter(teLaat).length;
+  const zq = norm(q);
+  const reparaties = (d.reparaties || []).filter((r) => !zq || norm([r.nr, r.auto, r.klant_naam, r.kenteken, r.omschrijving].join(' ')).includes(zq));
+  const vsBlok = voorstellen.length > 0 && (
+    <section className="vs-lijst">
+      <h3>{geld ? 'Voorstellen van monteurs' : 'Jouw voorstellen'} <span className="count num">{voorstellen.filter((t) => t.voorstel === 'open').length}</span></h3>
+      {voorstellen.map((t) => <VoorstelKaart key={t.id} t={t} />)}
+    </section>
+  );
 
   return (
     <div>
       <div className="filters">
-        <h2 style={{ fontFamily: 'var(--f-display)', fontSize: 18, margin: 0 }}>Werk per persoon</h2>
+        <div className="wissel" role="group" aria-label="Weergave">
+          {[['week', 'Week'], ['persoon', 'Per persoon'], ['auto', 'Per auto']].map(([k, l]) => <button key={k} aria-pressed={weergave === k} onClick={() => setWeergave(k)}>{l}</button>)}
+        </div>
         <span className="note">{open} open{laat ? ` · ${laat} te laat` : ''}</span>
         <label className="chk" style={{ marginLeft: 'auto' }}><input type="checkbox" checked={afgerond} onChange={(e) => setAfgerond(e.target.checked)} /> Ook afgerond (7 dagen)</label>
         {werker && <button className="btn primary" onClick={() => setForm({})}>{geld ? '+ Werk toevoegen' : '+ Werk voorstellen'}</button>}
@@ -226,14 +239,13 @@ export default function Planning() {
           </div>
         ) : <p className="note" style={{ margin: 0 }}>Geen auto gevonden.</p>)}
       </div>
-      {voorstellen.length > 0 && (
-        <section className="vs-lijst">
-          <h3>{geld ? 'Voorstellen van monteurs' : 'Jouw voorstellen'} <span className="count num">{voorstellen.filter((t) => t.voorstel === 'open').length}</span></h3>
-          {voorstellen.map((t) => <VoorstelKaart key={t.id} t={t} />)}
-        </section>
-      )}
       {!mensen.length && <p className="hint">Er zijn nog geen medewerkers met een inlog. Nodig ze uit bij Beheer; daarna kun je werk aan ze geven.</p>}
-      <div className="plan">
+      {weergave === 'week' && <>
+        {voorstellen.some((t) => t.voorstel === 'afgewezen') && vsBlok}
+        <WeekBord taken={taken} voorstellen={voorstellen} reparaties={reparaties} onNieuw={(p) => setForm(p)} />
+      </>}
+      {weergave === 'auto' && <>{vsBlok}<PerAuto taken={taken} onNieuw={(p) => setForm(p)} /></>}
+      {weergave === 'persoon' && <>{vsBlok}<div className="plan">
         {kol.map((k) => (
           <section key={k.id || 'niemand'} className={`plan-k${k.id === uid ? ' ik' : ''}${k.id ? '' : ' niemand'}`}>
             <h3>{k.naam}{k.id === uid ? ' (jij)' : ''} <span className="count num">{k.taken.filter((t) => !t.klaar).length}</span></h3>
@@ -260,8 +272,8 @@ export default function Planning() {
             {werker && <button className="btn ghost sm pk-add" onClick={() => setForm({ toegewezen_aan: k.id })}>+ Werk{k.id ? ` voor ${k.naam.split(' ')[0]}` : ''}</button>}
           </section>
         ))}
-      </div>
-      {!taken.length && <div className="pane"><Empty title={gevonden ? 'Geen werk bij deze zoekopdracht' : 'Geen open werk'}>{gevonden ? 'Gebruik "+ Werk" bij de gevonden auto om iets toe te voegen.' : 'Voeg werk toe met de knop rechtsboven.'}</Empty></div>}
+      </div></>}
+      {!taken.length && weergave !== 'week' && <div className="pane"><Empty title={gevonden ? 'Geen werk bij deze zoekopdracht' : 'Geen open werk'}>{gevonden ? 'Gebruik "+ Werk" bij de gevonden auto om iets toe te voegen.' : 'Voeg werk toe met de knop rechtsboven.'}</Empty></div>}
       {form && <TaakForm preset={form} onClose={() => setForm(null)} />}
     </div>
   );

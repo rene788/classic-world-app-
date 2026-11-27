@@ -582,3 +582,58 @@ tr.rij-laat td:first-child{box-shadow:inset 3px 0 0 var(--danger)}
 @media (max-width:560px){.tour{left:16px;right:16px;width:auto;bottom:max(16px,env(safe-area-inset-bottom,0px))}}
 .wp-sinds{white-space:nowrap;font-size:13px}
 .wp-sinds .note{display:block;font-size:12px}
+
+/* ---------- Planning: weekbord ---------- */
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.wb-wrap{display:flex;flex-direction:column;gap:10px;min-width:0}
+.wb-nav{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.wb-nav b{font-family:var(--f-display);font-weight:500;font-size:19px}
+.wb-nav .btn.sm{min-width:30px;font-size:15px;line-height:1}
+.wb-tip{margin-left:auto;font-size:12px}
+.wb-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.wb{display:grid;gap:0}
+.wb>*{border-right:1px solid var(--line);border-bottom:1px solid var(--line);min-width:0}
+.wb-hoek,.wb-dag{background:var(--surface-2);position:sticky;top:0}
+.wb-dag{padding:9px 10px;font-weight:600;font-size:12.5px;text-transform:capitalize;display:flex;flex-direction:column}
+.wb-dag small{font-weight:500;font-size:11px;color:var(--muted);text-transform:none}
+.wb-dag.vd{background:var(--primary);color:var(--primary-ink)}
+.wb-dag.vd small{color:var(--gold)}
+.wb-dag.laat{color:var(--danger)}
+.wb-wie{display:flex;gap:9px;align-items:center;padding:10px;position:sticky;left:0;background:var(--surface);z-index:1}
+.wb-wie b{display:block;font-size:13px}
+.wb-wie small{display:block;font-size:11.5px;color:var(--muted)}
+.wb-wie.ik{box-shadow:inset 3px 0 0 var(--gold)}
+.wb-wie.niemand{background:var(--surface-2)}
+.wb-av{width:28px;height:28px;border-radius:50%;background:var(--side);color:var(--side-ink);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex:none}
+.wb-wie.niemand .wb-av{background:var(--line);color:var(--muted)}
+.wb-cel{padding:6px;display:flex;flex-direction:column;gap:5px;min-height:76px;position:relative;transition:background .12s}
+.wb-cel.vd{background:color-mix(in srgb,var(--gold) 7%,transparent)}
+.wb-cel.laat{background:var(--danger-soft)}
+.wb-cel.over{background:var(--accent-soft);outline:2px dashed var(--accent);outline-offset:-3px}
+.wb-plus{align-self:stretch;border:1px dashed transparent;background:none;border-radius:6px;color:var(--muted);font-size:15px;line-height:1;padding:3px;cursor:pointer;opacity:0;margin-top:auto}
+.wb-cel:hover .wb-plus,.wb-plus:focus-visible{opacity:1;border-color:var(--line)}
+@media (hover:none){.wb-plus{opacity:.55}}
+.wbk{display:flex;flex-direction:column;gap:2px;text-align:left;font:inherit;color:inherit;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--st-werkplaats);border-radius:6px;padding:6px 8px;cursor:pointer;width:100%}
+.wbk[draggable="true"]{cursor:grab}
+.wbk:hover{border-color:var(--ink);border-left-color:inherit}
+.wbk b{font-size:12.5px;font-weight:600;line-height:1.3;overflow-wrap:anywhere}
+.wbk span{font-size:11.5px;color:var(--muted);line-height:1.3}
+.wbk em{font-style:normal;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);font-weight:600}
+.wbk.rep{border-left-color:var(--gold);background:color-mix(in srgb,var(--gold) 8%,var(--surface))}
+.wbk.vs{border-style:dashed;border-left-style:solid;border-left-color:var(--warn);background:var(--match-soft)}
+.wbk.laat{border-left-color:var(--danger)}
+.wbk.klaar{opacity:.6}
+.wbk.klaar b{text-decoration:line-through}
+.wb-legenda{display:flex;gap:16px;flex-wrap:wrap;font-size:12px}
+.wb-legenda span{display:inline-flex;gap:6px;align-items:center}
+.lg{width:10px;height:10px;border-radius:2px;display:inline-block;background:var(--st-werkplaats)}
+.lg-laat{background:var(--danger)}.lg-rep{background:var(--gold)}.lg-vs{background:var(--warn)}
+.pa-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;align-items:start}
+@media (max-width:420px){.pa-grid{grid-template-columns:1fr}}
+.pa-h{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px}
+.wp-act{width:1%;white-space:nowrap;text-align:right}
+@media (max-width:640px){.wb-tip{margin-left:0;flex-basis:100%}.wb-wie{padding:8px 6px}}
+.wb-cel.los,.wb-dag.los{background:var(--surface-2)}
+.wb-dag.los{border-right:2px solid var(--line)}
+.wb-cel.los{border-right:2px solid var(--line)}
+.wb-dag.los{text-transform:none}
