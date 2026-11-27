@@ -122,7 +122,7 @@ function AutoTabel({ rows, kolommen, start, open, leeg = 'Geen auto\'s.' }) {
 }
 
 const autoKol = { k: 'auto', l: 'Auto', v: (r) => r.c.voorraadnr || carName(r.c),
-  toon: (r) => <span className="kt-a"><b>{carName(r.c)}{r.c.bouwjaar ? <span className="note"> · {r.c.bouwjaar}</span> : null}</b>{r.c.voorraadnr && <span className="note mono">#{r.c.voorraadnr}</span>}<span className="mo"><Status s={r.c.status} /></span></span> };
+  toon: (r) => <span className="kt-a"><b>{carName(r.c)}{r.c.bouwjaar ? <span className="note"> · {r.c.bouwjaar}</span> : null}</b>{r.c.voorraadnr && <span className="note mono">#{r.c.voorraadnr}</span>}<span className="mo"><Status s={r.c.status} c={r.c} /></span></span> };
 const geld = (n) => (n == null ? '—' : eur(n) || '€ 0');
 
 // ---------- de zes panelen ----------
@@ -142,7 +142,7 @@ function Voorraad({ open }) {
       <AutoTabel open={open} start={klant ? { k: 'auto', dir: 'asc' } : { k: 'dagen', dir: 'desc' }}
         rows={stock.map((c) => ({ c, dagen: c.status === 'onderweg' ? null : daysSince(c.datum_binnen) }))}
         kolommen={[autoKol,
-          { k: 'status', l: 'Status', mv: true, v: (r) => r.c.status, toon: (r) => <Status s={r.c.status} /> },
+          { k: 'status', l: 'Status', mv: true, v: (r) => r.c.status, toon: (r) => <Status s={r.c.status} c={r.c} /> },
           { k: 'loc', l: 'Locatie', mv: true, v: (r) => r.c.locatie || null, toon: (r) => <Loc c={r.c} /> },
           !klant && { k: 'dagen', l: 'Dagen', r: true, v: (r) => r.dagen, toon: (r) => (r.dagen == null ? '—' : <span className={r.dagen > 90 ? 'chip bad' : undefined}>{r.dagen}</span>) },
         ].filter(Boolean)} />
@@ -170,7 +170,7 @@ function Waarde({ open }) {
       <PerAuto n={rows.length}>
         <AutoTabel open={open} rows={rows} start={{ k: 'p', dir: 'desc' }}
           kolommen={[autoKol,
-            { k: 'status', l: 'Status', mv: true, v: (r) => r.c.status, toon: (r) => <Status s={r.c.status} /> },
+            { k: 'status', l: 'Status', mv: true, v: (r) => r.c.status, toon: (r) => <Status s={r.c.status} c={r.c} /> },
             { k: 'p', l: 'Vraagprijs', r: true, v: (r) => r.p, toon: (r) => (r.p == null ? <span className="chip bad">geen prijs</span> : eur(r.p)) },
           ]} />
       </PerAuto>

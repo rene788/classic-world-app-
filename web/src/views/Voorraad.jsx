@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp, Modal, Field, Sel, Plate, Nr, Status, Loc, Empty, useForm, useUrls, CarFoto } from '../ui';
-import { STATUSES, BESTEMMING, carName, norm, num, int, nextNr, today, eur, eurVrij, daysSince, isCons, consNr, opVoorraad, km } from '../lib';
+import { STATUSES, BESTEMMING, carName, norm, num, int, nextNr, today, eur, eurVrij, daysSince, isCons, consNr, opVoorraad, km, isGereserveerd, reserveringVerlopen } from '../lib';
 import AutoDossier from './AutoDossier';
 import KlantDossier from './KlantDossier';
 import { Wie } from './Planning';
@@ -18,7 +18,7 @@ export default function Voorraad() {
 
   const s = norm(q);
   const list = d.autos
-    .filter((c) => (showroom ? klant.statussen.includes(c.status) : st === 'alle' || (st === 'actief' ? opVoorraad(c) : c.status === st)))
+    .filter((c) => (showroom ? klant.statussen.includes(c.status) : st === 'alle' || (st === 'actief' ? opVoorraad(c) : st === 'gereserveerd' ? isGereserveerd(c) : c.status === st)))
     .filter((c) => showroom || !loc || c.locatie === loc)
     .filter((c) => showroom || !srt || (srt === 'consignatie') === isCons(c))
     .filter((c) => !s || norm([c.voorraadnr, c.chassisnr, c.kenteken, c.merk, c.model, c.type, c.kleur, c.bouwjaar].join(' ')).includes(s))
@@ -37,7 +37,7 @@ export default function Voorraad() {
     </div>
   );
   const filters = !showroom && <>
-    <Sel value={st} onChange={setSt} options={[['actief', 'Op voorraad'], ...STATUSES, ['alle', 'Alle auto\'s']]} aria-label="Status" />
+    <Sel value={st} onChange={setSt} options={[['actief', 'Op voorraad'], ...STATUSES, ['gereserveerd', 'Gereserveerd'], ['alle', 'Alle auto\'s']]} aria-label="Status" />
     <Sel value={loc} onChange={setLoc} options={d.locaties.filter((l) => l.actief).map((l) => [l.id, l.naam])} empty="Alle locaties" aria-label="Locatie" />
     <Sel value={srt} onChange={setSrt} options={[['eigen', 'Eigen voorraad'], ['consignatie', 'Consignatie']]} empty="Eigen + consignatie" aria-label="Eigen of consignatie" />
   </>;
@@ -86,7 +86,7 @@ export default function Voorraad() {
                 <button key={c.id} className={`row met-foto${car && car.id === c.id ? ' sel' : ''}`} onClick={() => setNav((n) => ({ ...n, carId: c.id }))}>
                   <CarFoto c={c} url={fotoUrls[c.foto]} />
                   <span className="row-t">{carName(c)}{c.bouwjaar ? <span className="note"> · {c.bouwjaar}</span> : null}</span>
-                  <Status s={c.status} />
+                  <Status s={c.status} c={c} />
                   <span className="row-m">
                     {showroom ? <>
                       <Plate c={c} />{c.kleur && <span className="chip">{c.kleur}</span>}
@@ -126,7 +126,7 @@ function Kaart({ c, url, onClick }) {
     <button className="kaart" onClick={onClick}>
       <div className="kaart-f">
         {url ? <img src={url} alt="" loading="lazy" /> : <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 15l2-5a2 2 0 0 1 2-1.4h10A2 2 0 0 1 19 10l2 5v3h-2.5M5.5 18H3v-3m5.5 3h7" /><circle cx="7" cy="18" r="1.6" /><circle cx="17" cy="18" r="1.6" /></svg>}
-        <div className="lbl"><span className={`st-${c.status}`}>{stLabel}</span>{!klant && isCons(c) && <span className="cons">Consignatie</span>}</div>
+        <div className="lbl"><span className={`st-${c.status}`}>{stLabel}</span>{isGereserveerd(c) && !(klant && reserveringVerlopen(c)) && <span className={`res${reserveringVerlopen(c) ? ' verlopen' : ''}`}>{reserveringVerlopen(c) ? 'Reservering verlopen' : 'Gereserveerd'}</span>}{!klant && isCons(c) && <span className="cons">Consignatie</span>}</div>
       </div>
       <div className="kaart-b">
         {!showroom && c.voorraadnr && <span className="kaart-nr">#{c.voorraadnr}</span>}

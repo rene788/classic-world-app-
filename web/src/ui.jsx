@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { STL } from './lib';
+import { STL, isGereserveerd, reserveringVerlopen, fmtD as fmtDatum } from './lib';
 
 export const AppCtx = createContext(null);
 export const useApp = () => useContext(AppCtx);
@@ -49,7 +49,19 @@ export const Plate = ({ c, lg }) => c.kenteken
 export const Nr = ({ c, lg }) => c.voorraadnr
   ? <span className={`nr${lg ? ' lg' : ''}`}>#{c.voorraadnr}</span>
   : (lg ? <span className="nr none lg">geen voorraadnummer</span> : null);
-export const Status = ({ s }) => <span className={`pill st-${s || 'binnen'}`}>{STL[s] || STL.binnen}</span>;
+export const Status = ({ s, c }) => (c && isGereserveerd(c)
+  ? <><span className={`pill st-${s || 'binnen'}`}>{STL[s] || STL.binnen}</span> <Res c={c} /></>
+  : <span className={`pill st-${s || 'binnen'}`}>{STL[s] || STL.binnen}</span>);
+// "Gereserveerd"-label; klanten zien geen verlopen reserveringen en geen namen
+export function Res({ c }) {
+  const { d, klant } = useApp();
+  if (!isGereserveerd(c)) return null;
+  const verl = reserveringVerlopen(c);
+  if (verl && klant) return null;
+  const voor = !klant && c.gereserveerd_voor ? d.klanten?.find((k) => k.id === c.gereserveerd_voor)?.naam : null;
+  const titel = klant ? 'Gereserveerd' : [voor && `Voor ${voor}`, c.gereserveerd_tot && `tot ${fmtDatum(c.gereserveerd_tot)}`].filter(Boolean).join(' ') || 'Gereserveerd';
+  return <span className={`pill res${verl ? ' verlopen' : ''}`} title={titel}>{verl ? 'Reservering verlopen' : 'Gereserveerd'}</span>;
+}
 export const Loc = ({ c }) => c.locatie
   ? <LocNaam c={c} /> : null;
 function LocNaam({ c }) {

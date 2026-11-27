@@ -22,7 +22,7 @@ export default function KlantDossier({ car: c }) {
           <div className="eyebrow">{[c.merk, c.bouwjaar].filter(Boolean).join(' · ')}</div>
           <h2 className="d-title">{carName(c)}</h2>
           <dl className="hero-meta">
-            <div><dt>Status</dt><dd><Status s={c.status} /></dd></div>
+            <div><dt>Status</dt><dd><Status s={c.status} c={c} /></dd></div>
             {c.kenteken && <div><dt>Kenteken</dt><dd><Plate c={c} /></dd></div>}
             {klant?.prijs && <div><dt>Vraagprijs</dt><dd className="num">{prijs != null ? eur(prijs) : 'Op aanvraag'}</dd></div>}
           </dl>
