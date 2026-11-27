@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useApp } from '../ui';
 import KpiPaneel from './OverzichtDetail';
-import { LOCL, UITL, carCost, carLabel, carName, daysSince, eur, fmtD, hrs, periodRange, plusDays, sum, today, opVoorraad, isCons } from '../lib';
+import { EXTERN_TE_LANG, UITL, carCost, carLabel, carName, daysSince, eur, fmtD, hrs, periodRange, plusDays, sum, today, opVoorraad, isCons } from '../lib';
 
 export default function Overzicht() {
-  const { d, act, go, openCar, openKlant, beheerder, klant } = useApp();
+  const { d, go, openCar, openKlant, beheerder, klant, tabs } = useApp();
   const [kpi, setKpi] = useState(null);
   const alle = d.autos.filter(opVoorraad); // alles wat fysiek bij ons staat of onderweg is
   const stock = alle.filter((c) => !isCons(c)); // eigen voorraad
@@ -65,20 +65,13 @@ export default function Overzicht() {
   const order = { bad: 0, warn: 1, good: 2, info: 3 };
   sig.sort((a, b) => order[a.lvl] - order[b.lvl]);
 
-  const at = (k) => alle.filter((c) => c.locatie === k);
-  const nVol = Array.from({ length: 10 }, (_, i) => d.boxen['box' + (i + 1)]).filter(Boolean).length;
-  const vol = (k, v) => act((db) => db.upsert('boxen', { locatie: k, vol: v }), null, ['boxen']);
-  const short = (c) => (c.voorraadnr ? '#' + c.voorraadnr + ' ' + (c.merk || '') : carName(c));
-  const Box = ({ k, label }) => {
-    const cars = at(k);
-    return (
-      <div className={`gbox${cars.length ? ' has' : ''}${d.boxen[k] ? ' vol' : ''}`}>
-        <div className="gbox-h"><small>{label}</small>
-          <label className="volchk"><input type="checkbox" checked={!!d.boxen[k]} disabled={!!klant} onChange={(e) => vol(k, e.target.checked)} />vol</label></div>
-        {cars.length ? cars.map((c) => <button key={c.id} className="linkish" title={carLabel(c)} onClick={() => openCar(c.id)}>{short(c)}</button>) : <span className="leeg">leeg</span>}
-      </div>
-    );
-  };
+  // Locaties: korte samenvatting, de rest staat op het tabblad Locaties
+  const opLoc = alle.filter((c) => c.status !== 'onderweg');
+  const locTel = d.locaties.filter((l) => l.actief && l.soort !== 'box').map((l) => ({ l, n: opLoc.filter((c) => c.locatie === l.id).length })).filter((x) => x.n || x.l.soort === 'intern');
+  const boxLocs = d.locaties.filter((l) => l.actief && l.soort === 'box');
+  const boxBezet = boxLocs.filter((l) => opLoc.some((c) => c.locatie === l.id) || d.boxen[l.id]).length;
+  const geenLoc = opLoc.filter((c) => !c.locatie).length;
+  const teLangExt = opLoc.filter((c) => d.locById[c.locatie]?.soort === 'extern' && daysSince(c.locatie_sinds || c.datum_binnen) > EXTERN_TE_LANG);
 
   const Kpi = ({ k, l, v, s: sub }) => (
     <button className="kpi" onClick={() => setKpi(k)} aria-haspopup="dialog">
@@ -111,17 +104,14 @@ export default function Overzicht() {
             ))}
         </section>
         <section className="box">
-          <h2>Locaties <span className="count num">{nVol} van 10 boxen vol</span></h2>
-          <div className="legend" style={{ marginBottom: 12 }}>
-            {['werkplaats', 'showroom', 'loods', 'extern'].map((k) => <span key={k}>{LOCL[k]} <b className="num">{at(k).length}</b></span>)}
-            {onderweg.length > 0 && <span>Onderweg <b className="num">{onderweg.length}</b></span>}
-            {alle.filter((c) => !c.locatie && c.status !== 'onderweg').length > 0 && <span>Onbekend <b className="num">{alle.filter((c) => !c.locatie && c.status !== 'onderweg').length}</b></span>}
+          <h2>Locaties {boxLocs.length > 0 && <span className="count num">{boxBezet} van {boxLocs.length} boxen bezet</span>}</h2>
+          <div className="loc-sam">
+            {locTel.map(({ l, n }) => <span key={l.id}><small>{l.naam}</small><b className="num">{n}{l.plekken ? <em> / {l.plekken}</em> : null}</b></span>)}
+            {onderweg.length > 0 && <span><small>Onderweg</small><b className="num">{onderweg.length}</b></span>}
+            {geenLoc > 0 && <span className="warn"><small>Geen locatie</small><b className="num">{geenLoc}</b></span>}
           </div>
-          <div style={{ marginBottom: 8 }}><Box k="loods" label="Externe loods" /></div>
-          <div className="boxes">{Array.from({ length: 10 }, (_, i) => <Box key={i} k={'box' + (i + 1)} label={'Box ' + (i + 1)} />)}</div>
-          {at('extern').length > 0 && <div style={{ marginTop: 12 }}>{at('extern').map((c) => (
-            <div key={c.id} className="doc"><span className="loc">Extern</span><button className="linkish" onClick={() => openCar(c.id)}>{carLabel(c)}</button><span className="note">{c.locatie_info || 'plek niet ingevuld'}</span></div>
-          ))}</div>}
+          {teLangExt.length > 0 && <p className="note" style={{ margin: '8px 0 0' }}><b>{teLangExt.length}</b> auto{teLangExt.length === 1 ? ' staat' : "'s staan"} langer dan {EXTERN_TE_LANG} dagen extern.</p>}
+          {tabs.includes('locaties') && <button className="btn" style={{ marginTop: 12 }} onClick={() => go('locaties')}>Naar locaties ›</button>}
           {onderweg.length > 0 && !klant && (
             <div className="ow">
               <h3 className="kp-h">Onderweg: kosten tot nu toe</h3>
@@ -143,7 +133,6 @@ export default function Overzicht() {
               {onderweg.some((c) => !isCons(c) && !carCost(c, d).inkoop) && <p className="hint">Bij "onbekend" staat nog geen inkoopprijs. Vul die in via Wijzigen in het dossier.</p>}
             </div>
           )}
-          <p className="hint" style={{ marginTop: 8 }}>Er passen meerdere auto's in een box. Vink "vol" aan zodra er niets meer bij kan.</p>
         </section>
       </div>
       {geannuleerd.length > 0 && !klant && (

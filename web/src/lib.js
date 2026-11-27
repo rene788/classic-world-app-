@@ -13,6 +13,9 @@ export const STL = Object.fromEntries(STATUSES);
 export const LOCATIES = [['werkplaats', 'Werkplaats'], ['showroom', 'Showroom'], ['loods', 'Externe loods'], ['extern', 'Externe locatie'],
   ...Array.from({ length: 10 }, (_, i) => ['box' + (i + 1), 'Garagebox ' + (i + 1)])];
 export const LOCL = Object.fromEntries(LOCATIES);
+// Zolang de tabel locaties nog niet geladen is: de oude vaste lijst
+export const LOCATIES_BASIS = LOCATIES.map(([id, naam], i) => ({ id, naam, soort: id.startsWith('box') ? 'box' : id === 'extern' ? 'extern' : 'intern', plekken: null, volgorde: i, actief: true }));
+export const EXTERN_TE_LANG = 30; // dagen
 export const FASES = [['binnenkomst', 'Bij binnenkomst'], ['restauratie', 'Tijdens restauratie'], ['verkoop', 'Klaar voor verkoop'], ['aflevering', 'Bij aflevering'], ['document', 'Documenten']];
 export const PART_ST = [['nodig', 'Nodig'], ['besteld', 'Besteld'], ['binnen', 'Binnen']];
 export const KOST_SOORT = [['derden', 'Werk door derden'], ['transport', 'Transport'], ['keuring', 'Keuring en papieren'], ['onderdelen', 'Onderdelen (zonder factuur)'], ['overig', 'Overig']];

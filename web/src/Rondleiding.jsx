@@ -5,6 +5,7 @@ const STAPPEN = [
   { view: 'overzicht', t: 'Dashboard', x: 'Je startpunt. De blokken bovenaan zijn klikbaar: tik erop voor de rekensom en de auto\'s erachter. Daaronder staan signalen die aandacht vragen.' },
   { view: 'sinds', t: 'Wat is er nieuw', x: 'Sinds je laatste dienst: wat collega\'s aan auto\'s hebben veranderd terwijl je weg was: nieuwe taken, statuswijzigingen, onderdelen binnen, nieuwe foto\'s. Vink per auto af wat je gezien hebt.' },
   { view: 'voorraad', t: 'Voorraad', x: 'Alle auto\'s, als kaarten of als lijst. Tik op een auto voor het dossier met gegevens, werkplaats, foto\'s, kosten en verkoop.' },
+  { view: 'locaties', t: 'Locaties', x: 'Waar staat welke auto? Een tegel per locatie met hoe lang de auto er al staat. Sleep een auto naar een andere plek, of tik erop. Auto\'s die te lang bij een externe partner staan, krijgen een melding.' },
   { view: 'werk', t: 'Mijn werk', x: 'De taken die aan jou zijn gegeven. Vink af wat klaar is en klok je uren op een auto.' },
   { view: 'werkplaats', t: 'Werkplaats', x: 'Alles wat in de werkplaats staat in één tabel: wat er moet gebeuren, wie eraan werkt en op welke onderdelen we wachten. Klantreparaties staan er ook in.' },
   { view: 'planning', t: 'Planning', x: 'Het weekbord: per persoon een rij, per dag een kolom. Sleep werk naar een andere dag of persoon, of tik op een leeg vak om werk toe te voegen. Monteurs stellen werk voor; verkoop of beheer geeft akkoord.' },

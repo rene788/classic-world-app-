@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { STL, LOCL } from './lib';
+import { STL } from './lib';
 
 export const AppCtx = createContext(null);
 export const useApp = () => useContext(AppCtx);
@@ -51,7 +51,11 @@ export const Nr = ({ c, lg }) => c.voorraadnr
   : (lg ? <span className="nr none lg">geen voorraadnummer</span> : null);
 export const Status = ({ s }) => <span className={`pill st-${s || 'binnen'}`}>{STL[s] || STL.binnen}</span>;
 export const Loc = ({ c }) => c.locatie
-  ? <span className="loc">{(LOCL[c.locatie] || c.locatie) + (c.locatie === 'extern' && c.locatie_info ? ': ' + c.locatie_info : '')}</span> : null;
+  ? <LocNaam c={c} /> : null;
+function LocNaam({ c }) {
+  const { d } = useApp();
+  return <span className="loc">{d.locNaam(c.locatie) + (d.locById[c.locatie]?.soort === 'extern' && c.locatie_info ? ': ' + c.locatie_info : '')}</span>;
+}
 
 // Tijdelijke links (1 uur) ophalen voor bestanden in de afgeschermde opslag
 export function useUrls(paths) {

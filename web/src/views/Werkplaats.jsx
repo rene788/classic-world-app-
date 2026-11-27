@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp, Status, Empty, CarFoto, useUrls } from '../ui';
-import { carLabel, fmtD, daysSince, opVoorraad, norm, LOCL } from '../lib';
+import { carLabel, fmtD, daysSince, opVoorraad, norm } from '../lib';
 import { naamVan, teLaat, TaakForm } from './Planning';
 import { REPL, repOpen } from './Reparaties';
 
@@ -59,7 +59,7 @@ export default function Werkplaats() {
           <thead><tr><th>Auto</th><th>Wat</th><th>Wie</th><th>Status</th><th>Wacht op</th><th>Sinds</th>{werker && <th className="wp-act"><span className="sr-only">Acties</span></th>}</tr></thead>
           <tbody>{rijen.map((x) => x.c ? (
             <tr key={x.key} className={`click${x.laat ? ' rij-laat' : ''}`} onClick={() => openCar(x.c.id)}>
-              <td><div className="wp-auto"><CarFoto c={x.c} url={fotos[x.c.foto]} sm /><span>{carLabel(x.c)}<span className="note">{x.c.locatie ? LOCL[x.c.locatie] || x.c.locatie : ''}</span></span></div></td>
+              <td><div className="wp-auto"><CarFoto c={x.c} url={fotos[x.c.foto]} sm /><span>{carLabel(x.c)}<span className="note">{d.locNaam(x.c.locatie)}</span></span></div></td>
               <td>{x.taken.length ? <>{x.taken[0].tekst}{x.taken.length > 1 && <span className="note"> + {x.taken.length - 1} meer</span>}</> : <span className="note">Geen open taken</span>}</td>
               <td>{x.nu.length ? <span className="chip live">● {x.nu.join(', ')}</span> : x.wie.length ? x.wie.join(', ') : <span className="note">Nog niemand</span>}</td>
               <td><Status s={x.c.status} />{x.laat && <span className="chip bad" style={{ marginLeft: 6 }}>te laat</span>}</td>

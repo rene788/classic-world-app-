@@ -25,7 +25,7 @@ const S = {
     { id: 'a6', voorraadnr: '2026-105', chassisnr: null, kenteken: null, merk: 'Porsche', model: '911', type: '3.2 Carrera Coupé', bouwjaar: 1985, kleur: 'Zwart', km: null, status: 'onderweg', locatie: null, locatie_info: 'Transport uit Duitsland', datum_binnen: d0(150), aangemaakt: d0(150) },
     { id: 'a7', voorraadnr: '2026-099', chassisnr: '9113100777', kenteken: null, merk: 'Porsche', model: '911', type: 'T Targa', bouwjaar: 1973, kleur: 'Oranje', km: null, status: 'geannuleerd', locatie: null, geannuleerd_op: d0(6), annuleer_reden: 'Verkoper trok zich terug', datum_binnen: null, aangemaakt: d0(30) },
     { id: 'a8', voorraadnr: '2026-201', soort: 'consignatie', chassisnr: '9119300412', kenteken: 'GZ-31-PR', merk: 'Porsche', model: '911', type: 'SC Targa', bouwjaar: 1979, kleur: 'Grand Prix Weiss', km: 98000, status: 'klaar', locatie: 'showroom', datum_binnen: d0(25), aangemaakt: d0(25) },
-    { id: 'a5', voorraadnr: null, chassisnr: 'WDB1130441A000123', kenteken: 'DK-55-12', merk: 'Mercedes-Benz', model: '280 SL', type: 'Pagode', bouwjaar: 1969, kleur: 'Papyrusweiß', km: 99000, status: 'binnen', locatie: 'extern', locatie_info: 'Spuiterij Jansen', datum_binnen: d0(2), aangemaakt: d0(2) },
+    { id: 'a5', voorraadnr: null, chassisnr: 'WDB1130441A000123', kenteken: 'DK-55-12', merk: 'Mercedes-Benz', model: '280 SL', type: 'Pagode', bouwjaar: 1969, kleur: 'Papyrusweiß', km: 99000, status: 'binnen', locatie: 'spuiterij-jansen', locatie_info: 'Lakwerk motorkap', locatie_sinds: d0(38), datum_binnen: d0(2), aangemaakt: d0(2) },
   ],
   auto_financien: [
     { auto_id: 'a8', vraagprijs: 64900, regeling: 'marge', cons_eigenaar: 'c1', cons_afspraak: 'provisie_pct', cons_waarde: 8, cons_tot: d0(-10) },
@@ -84,6 +84,14 @@ const S = {
     { id: 'r2', nr: 2, klant_naam: 'Ingrid Smit', telefoon: '06 4444 5555', auto: 'Mercedes 280 SL 1969', kenteken: 'DZ-11-AB', omschrijving: 'Remmen rondom nalopen, APK', status: 'wacht', toegewezen_aan: null, binnen_op: d0(6), klaar_voor: d0(-5), uren_geschat: 4, notitie: 'Wacht op remklauwen', aangemaakt: d0(7) },
     { id: 'r3', nr: 3, klant_naam: 'Bas Jansen', telefoon: null, auto: 'Jaguar E-Type S1', kenteken: null, omschrijving: 'Carburateurs afstellen', status: 'aangemeld', toegewezen_aan: null, binnen_op: null, klaar_voor: d0(-10), uren_geschat: 3, aangemaakt: d0(1) },
   ],
+  locaties: [
+    { id: 'showroom', naam: 'Showroom', soort: 'intern', plekken: 12, volgorde: 10, actief: true },
+    { id: 'werkplaats', naam: 'Werkplaats', soort: 'intern', plekken: 5, volgorde: 20, actief: true },
+    { id: 'loods', naam: 'Externe loods', soort: 'intern', plekken: null, volgorde: 30, actief: true },
+    ...Array.from({ length: 10 }, (_, i) => ({ id: 'box' + (i + 1), naam: 'Garagebox ' + (i + 1), soort: 'box', plekken: null, volgorde: 101 + i, actief: true })),
+    { id: 'spuiterij-jansen', naam: 'Spuiterij Jansen', soort: 'extern', plekken: null, volgorde: 800, actief: true },
+    { id: 'extern', naam: 'Externe locatie (overig)', soort: 'extern', plekken: null, volgorde: 900, actief: true },
+  ],
 };
 
 const GELD = ['auto_financien', 'kosten', 'bestellingen', 'afleverlijst', 'klanten', 'zoekwensen', 'contactmomenten', 'aanbod', 'instellingen'];
@@ -100,7 +108,7 @@ const denied = () => { throw Object.assign(new Error('new row violates row-level
 const canWrite = (t, op, row) => {
   if (rol === 'beheerder') return true;
   if (rol === 'meekijker') return false;
-  if (GELD.includes(t) || t === 'boxen') return geld && t !== 'instellingen';
+  if (GELD.includes(t) || t === 'boxen' || t === 'locaties') return geld && t !== 'instellingen';
   if (t === 'autos') return geld && op !== 'delete';
   if (t === 'profielen') return op === 'update' && row && row.id === me;
   if (t === 'uren') return op === 'insert' && (geld || (row.monteur_id === me && row.status === 'ingediend'));
@@ -146,6 +154,17 @@ export const db = {
     await delay(); const k = keyOf(t); const i = S[t].findIndex((r) => r[k] === rid);
     if (i < 0 || !canWrite(t, 'delete', S[t][i])) denied();
     S[t].splice(i, 1);
+  },
+  async rpc(fn, args) {
+    await delay();
+    if (fn !== 'verplaats_auto') throw new Error('Onbekende functie ' + fn);
+    if (!['beheerder', 'verkoop', 'monteur'].includes(rol)) throw new Error('Je hebt geen rechten om auto\'s te verplaatsen');
+    const l = args.p_locatie && S.locaties.find((x) => x.id === args.p_locatie && x.actief);
+    if (args.p_locatie && !l) throw new Error('Onbekende locatie');
+    const a = S.autos.find((x) => x.id === args.p_auto); if (!a) throw new Error('Auto niet gevonden');
+    if (a.locatie !== (args.p_locatie || null)) { a.locatie_sinds = args.p_locatie ? new Date().toISOString() : null; S.wijzigingen.unshift({ id: id(), auto_id: a.id, wie: me, soort: 'locatie', tekst: 'Verplaatst naar ' + (l ? l.naam : 'geen locatie'), aangemaakt: new Date().toISOString() }); }
+    a.locatie = args.p_locatie || null; a.locatie_info = l && l.soort === 'extern' ? (String(args.p_info || '').trim().slice(0, 120) || null) : null;
+    return null;
   },
   async upload(path, file) { await delay(); blobs[path] = URL.createObjectURL(file); return path; },
   async urls(paths) { return Object.fromEntries(paths.filter((p) => blobs[p]).map((p) => [p, blobs[p]])); },
