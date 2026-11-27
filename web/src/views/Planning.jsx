@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp, Modal, Field, Sel, Empty } from '../ui';
-import { carLabel, fmtD, today, opVoorraad } from '../lib';
+import { carLabel, fmtD, today, opVoorraad, norm, numDec, eur, hrs } from '../lib';
 
 // ---------- gedeelde bouwstenen voor taken met een persoon ----------
 
@@ -34,9 +34,52 @@ export function Deadline({ t }) {
   return <span className={`chip${teLaat(t) ? ' bad' : n <= 2 ? ' warn' : ''}`}>{teLaat(t) ? `te laat · ${fmtD(t.deadline)}` : n === 0 ? 'vandaag klaar' : n === 1 ? 'morgen klaar' : `klaar voor ${fmtD(t.deadline)}`}</span>;
 }
 
+// Voorstel van een monteur: verkoop/beheer geeft akkoord (wordt een gewone taak) of wijst af
+export function VoorstelKaart({ t, toonAuto = true }) {
+  const { d, act, geld, uid, openCar } = useApp();
+  const [wie, setWie] = useState(t.voorgesteld_door || '');
+  const [afwijzen, setAfwijzen] = useState(false);
+  const [reden, setReden] = useState('');
+  const c = t.auto_id && d.autoById[t.auto_id];
+  const akkoord = () => act((db) => db.update('taken', t.id, { voorstel: null, toegewezen_aan: wie || null }), `Akkoord${wie ? `, taak voor ${naamVan(d, wie)}` : ''}`, ['taken']);
+  const wijsAf = () => act((db) => db.update('taken', t.id, { voorstel: 'afgewezen', afwijs_reden: reden.trim() || null }), 'Voorstel afgewezen', ['taken']);
+  const weg = () => act((db) => db.remove('taken', t.id), 'Verwijderd', ['taken']);
+  const schatting = [t.schatting_uren != null && `± ${hrs(t.schatting_uren)} uur`, t.schatting_eur != null && `± ${eur(t.schatting_eur)} onderdelen`].filter(Boolean).join(' · ');
+  return (
+    <div className={`vs${t.voorstel === 'afgewezen' ? ' af' : ''}`}>
+      <div className="vs-b">
+        <div className="pk-t">{t.tekst}</div>
+        <div className="pk-m">
+          {toonAuto && (c ? <button className="linkish" onClick={() => openCar(c.id)}>{carLabel(c)}</button> : <span className="chip">Algemeen werk</span>)}
+          <span className="note">voorstel van {naamVan(d, t.voorgesteld_door) || 'onbekend'}{t.aangemaakt ? ` · ${fmtD(t.aangemaakt)}` : ''}</span>
+        </div>
+        {t.uitleg && <div className="note">{t.uitleg}</div>}
+        {schatting && <div className="note"><b>Inschatting:</b> {schatting}</div>}
+        {t.voorstel === 'afgewezen' && <div className="note bad">Afgewezen{t.afwijs_reden ? `: ${t.afwijs_reden}` : ''}</div>}
+      </div>
+      {t.voorstel === 'open' && geld && !afwijzen && (
+        <div className="vs-k">
+          <Sel value={wie} onChange={setWie} empty="Nog niemand" options={werkers(d).map((p) => [p.id, p.naam || p.email])} aria-label="Taak voor wie" />
+          <button className="btn primary sm" onClick={akkoord}>Akkoord</button>
+          <button className="btn sm" onClick={() => setAfwijzen(true)}>Afwijzen</button>
+        </div>
+      )}
+      {afwijzen && (
+        <div className="vs-k">
+          <input className="in" autoFocus value={reden} onChange={(e) => setReden(e.target.value)} placeholder="Waarom niet? (optioneel)" aria-label="Reden" />
+          <button className="btn sm danger" onClick={wijsAf}>Afwijzen</button>
+          <button className="btn ghost sm" onClick={() => setAfwijzen(false)}>Terug</button>
+        </div>
+      )}
+      {t.voorstel === 'open' && !geld && <span className="chip warn">wacht op akkoord</span>}
+      {t.voorstel === 'afgewezen' && (geld || t.voorgesteld_door === uid) && <button className="btn ghost sm" onClick={weg}>Weghalen</button>}
+    </div>
+  );
+}
+
 // Werk toevoegen: kies een auto, vink bestaande taken aan en/of voeg een nieuwe taak toe
 export function TaakForm({ preset = {}, onClose }) {
-  const { d, act, geld } = useApp();
+  const { d, act, geld, uid } = useApp();
   const autos = d.autos.filter((c) => opVoorraad(c) || c.id === preset.auto_id).sort((a, b) => String(b.voorraadnr || '').localeCompare(String(a.voorraadnr || ''), 'nl', { numeric: true }));
   const [tekst, setTekst] = useState('');
   const [uitleg, setUitleg] = useState('');
@@ -45,6 +88,9 @@ export function TaakForm({ preset = {}, onClose }) {
   const [deadline, setDeadline] = useState('');
   const [gekozen, setGekozen] = useState([]);
   const [hele, setHele] = useState(false);
+  const [su, setSu] = useState('');
+  const [se, setSe] = useState('');
+  const voorstel = !geld; // monteurs doen een voorstel, verkoop/beheer keurt goed
   const [busy, setBusy] = useState(false);
   const bestaand = auto ? d.taken.filter((t) => t.auto_id === auto && !t.klaar).sort((a, b) => a.volgorde - b.volgorde) : [];
   const kiesAuto = (v) => { setAuto(v); setGekozen([]); setHele(false); };
@@ -60,16 +106,17 @@ export function TaakForm({ preset = {}, onClose }) {
       for (const id of gekozen) await db.update('taken', id, { toegewezen_aan: wie || null, ...(deadline ? { deadline } : {}) });
       if (tekst.trim()) {
         const volgorde = d.taken.filter((x) => (x.auto_id || null) === (auto || null)).length;
-        await db.insert('taken', { auto_id: auto || null, tekst: tekst.trim(), uitleg: uitleg.trim() || null, toegewezen_aan: wie || null, deadline: deadline || null, volgorde });
+        await db.insert('taken', { auto_id: auto || null, tekst: tekst.trim(), uitleg: uitleg.trim() || null, toegewezen_aan: wie || null, deadline: deadline || null, volgorde,
+          ...(voorstel ? { voorstel: 'open', voorgesteld_door: uid, schatting_uren: numDec(su), schatting_eur: numDec(se) } : {}) });
       }
-    }, hele && auto ? `Hele auto voor ${naamVan(d, wie)}` : `${gekozen.length + (tekst.trim() ? 1 : 0) === 1 ? '1 taak' : `${gekozen.length + (tekst.trim() ? 1 : 0)} taken`}${wie ? ` voor ${naamVan(d, wie)}` : ''}`, ['taken', 'autos']);
+    }, voorstel && tekst.trim() ? 'Voorstel verstuurd. Verkoop of beheer keurt het goed.' : hele && auto ? `Hele auto voor ${naamVan(d, wie)}` : `${gekozen.length + (tekst.trim() ? 1 : 0) === 1 ? '1 taak' : `${gekozen.length + (tekst.trim() ? 1 : 0)} taken`}${wie ? ` voor ${naamVan(d, wie)}` : ''}`, ['taken', 'autos']);
     setBusy(false);
     if (ok) onClose();
   };
   return (
-    <Modal title={wie ? `Werk voor ${naamVan(d, wie)}` : 'Werk toevoegen'} onClose={onClose}
+    <Modal title={voorstel ? 'Werk voorstellen' : wie ? `Werk voor ${naamVan(d, wie)}` : 'Werk toevoegen'} onClose={onClose}
       footer={<><button className="btn" onClick={onClose}>Annuleren</button><button className="btn primary" disabled={!klaarOm || busy} onClick={save}>
-        {hele ? 'Hele auto toewijzen' : gekozen.length && !tekst.trim() ? `${gekozen.length === 1 ? '1 taak' : `${gekozen.length} taken`} toewijzen` : 'Toevoegen'}</button></>}>
+        {hele ? 'Hele auto toewijzen' : voorstel && tekst.trim() ? 'Voorstel versturen' : gekozen.length && !tekst.trim() ? `${gekozen.length === 1 ? '1 taak' : `${gekozen.length} taken`} toewijzen` : 'Toevoegen'}</button></>}>
       <div className="grid2">
         <Field label="Voor wie"><Sel value={wie} onChange={setWie} empty="Nog niemand" options={werkers(d).map((p) => [p.id, p.naam || p.email])} /></Field>
         <Field label="Klaar voor (optioneel)"><input className="in" type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} /></Field>
@@ -100,10 +147,17 @@ export function TaakForm({ preset = {}, onClose }) {
           ))}
         </div>
       )}
-      <Field label={auto ? 'Nieuwe taak voor deze auto (optioneel)' : 'Wat moet er gebeuren?'}>
+      {voorstel && <p className="hint" style={{ margin: 0 }}>Nieuw werk wordt een <b>voorstel</b>: verkoop of beheer geeft eerst akkoord, daarna komt het in de planning.</p>}
+      <Field label={voorstel ? (auto ? 'Wat is er nodig aan deze auto?' : 'Wat is er nodig?') : auto ? 'Nieuwe taak voor deze auto (optioneel)' : 'Wat moet er gebeuren?'}>
         <input className="in" value={tekst} onChange={(e) => setTekst(e.target.value)} placeholder={auto ? 'bijv. olie verversen' : 'bijv. onderdelen ophalen, werkplaats opruimen'} />
       </Field>
-      {tekst.trim() && <Field label="Toelichting (optioneel)"><input className="in" value={uitleg} onChange={(e) => setUitleg(e.target.value)} /></Field>}
+      {tekst.trim() && <Field label={voorstel ? 'Waarom? Wat heb je gezien?' : 'Toelichting (optioneel)'}><input className="in" value={uitleg} onChange={(e) => setUitleg(e.target.value)} /></Field>}
+      {voorstel && tekst.trim() && (
+        <div className="grid2">
+          <Field label="Geschatte uren (optioneel)"><input className="in" inputMode="decimal" value={su} onChange={(e) => setSu(e.target.value)} placeholder="bijv. 3" /></Field>
+          <Field label="Geschatte kosten onderdelen € (optioneel)"><input className="in" inputMode="decimal" value={se} onChange={(e) => setSe(e.target.value)} placeholder="bijv. 250" /></Field>
+        </div>
+      )}
     </Modal>
   );
 }
@@ -111,13 +165,23 @@ export function TaakForm({ preset = {}, onClose }) {
 // ---------- tabblad Planning: werk per persoon ----------
 
 export default function Planning() {
-  const { d, act, werker, uid, openCar } = useApp();
+  const { d, act, werker, uid, openCar, geld } = useApp();
   const [form, setForm] = useState(null);
   const [afgerond, setAfgerond] = useState(false);
+  const [q, setQ] = useState('');
+  // Auto zoeken: op voorraadnummer, merk, model, type, kenteken of chassis
+  const zoek = norm(q);
+  const gevonden = zoek ? d.autos.filter((c) => opVoorraad(c) && norm([c.voorraadnr, c.merk, c.model, c.type, c.kenteken, c.chassisnr, c.kleur].join(' ')).includes(zoek)) : null;
+  const gevondenIds = gevonden && new Set(gevonden.map((c) => c.id));
+  const voorstellen = d.voorstellen
+    .filter((t) => (geld ? t.voorstel === 'open' : t.voorgesteld_door === uid))
+    .filter((t) => !gevondenIds || gevondenIds.has(t.auto_id))
+    .sort((a, b) => (a.voorstel === 'open' ? 0 : 1) - (b.voorstel === 'open' ? 0 : 1) || (b.aangemaakt || '').localeCompare(a.aangemaakt || ''));
   const grens = new Date(Date.now() - 7 * 864e5).toISOString();
   const taken = d.taken
     .filter((t) => !t.klaar || (afgerond && (t.klaar_op || '') >= grens))
     .filter((t) => !t.auto_id || (d.autoById[t.auto_id] && (opVoorraad(d.autoById[t.auto_id]) || t.klaar)))
+    .filter((t) => !gevondenIds || gevondenIds.has(t.auto_id))
     .sort((a, b) => (a.klaar - b.klaar) || (a.deadline || '9999').localeCompare(b.deadline || '9999') || (a.aangemaakt || '').localeCompare(b.aangemaakt || ''));
   const mensen = werkers(d);
   const kol = [...mensen.map((p) => ({ id: p.id, naam: p.naam || p.email, rol: p.rol, taken: taken.filter((t) => t.toegewezen_aan === p.id) })),
@@ -128,7 +192,7 @@ export default function Planning() {
   const groepeer = (ts, wie) => {
     const m = new Map();
     // Auto's die in hun geheel aan deze persoon zijn gegeven, ook zonder open taken
-    if (wie) for (const c of d.autos.filter((x) => x.toegewezen_aan === wie && opVoorraad(x))) m.set(c.id, { id: c.id, c, taken: [] });
+    if (wie) for (const c of d.autos.filter((x) => x.toegewezen_aan === wie && opVoorraad(x) && (!gevondenIds || gevondenIds.has(x.id)))) m.set(c.id, { id: c.id, c, taken: [] });
     for (const t of ts) { const k = t.auto_id || ''; if (!m.has(k)) m.set(k, { id: k, c: k ? d.autoById[k] : null, taken: [] }); m.get(k).taken.push(t); }
     return [...m.values()].sort((a, b) => (!a.id) - (!b.id));
   };
@@ -141,8 +205,33 @@ export default function Planning() {
         <h2 style={{ fontFamily: 'var(--f-display)', fontSize: 18, margin: 0 }}>Werk per persoon</h2>
         <span className="note">{open} open{laat ? ` · ${laat} te laat` : ''}</span>
         <label className="chk" style={{ marginLeft: 'auto' }}><input type="checkbox" checked={afgerond} onChange={(e) => setAfgerond(e.target.checked)} /> Ook afgerond (7 dagen)</label>
-        {werker && <button className="btn primary" onClick={() => setForm({})}>+ Werk toevoegen</button>}
+        {werker && <button className="btn primary" onClick={() => setForm({})}>{geld ? '+ Werk toevoegen' : '+ Werk voorstellen'}</button>}
       </div>
+      <div className="pl-zoek">
+        <input className="in" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Zoek een auto: voorraadnummer, merk, kenteken, chassis…" aria-label="Zoek een auto" />
+        {gevonden && (gevonden.length ? (
+          <div className="pl-gev">
+            {gevonden.slice(0, 8).map((c) => {
+              const n = d.taken.filter((t) => t.auto_id === c.id && !t.klaar).length;
+              const wieAuto = naamVan(d, c.toegewezen_aan);
+              return (
+                <div key={c.id} className="pl-auto">
+                  <button className="linkish" onClick={() => openCar(c.id)}>{carLabel(c)}</button>
+                  <span className="note">{n ? `${n} open` : 'geen open taken'}{wieAuto ? ` · hele auto: ${wieAuto}` : ''}</span>
+                  {werker && <button className="btn sm" onClick={() => setForm({ auto_id: c.id })}>{geld ? '+ Werk' : '+ Voorstel'}</button>}
+                </div>
+              );
+            })}
+            {gevonden.length > 8 && <span className="note">en nog {gevonden.length - 8}; typ verder om te verfijnen</span>}
+          </div>
+        ) : <p className="note" style={{ margin: 0 }}>Geen auto gevonden.</p>)}
+      </div>
+      {voorstellen.length > 0 && (
+        <section className="vs-lijst">
+          <h3>{geld ? 'Voorstellen van monteurs' : 'Jouw voorstellen'} <span className="count num">{voorstellen.filter((t) => t.voorstel === 'open').length}</span></h3>
+          {voorstellen.map((t) => <VoorstelKaart key={t.id} t={t} />)}
+        </section>
+      )}
       {!mensen.length && <p className="hint">Er zijn nog geen medewerkers met een inlog. Nodig ze uit bij Beheer; daarna kun je werk aan ze geven.</p>}
       <div className="plan">
         {kol.map((k) => (
@@ -172,7 +261,7 @@ export default function Planning() {
           </section>
         ))}
       </div>
-      {!taken.length && <div className="pane"><Empty title="Geen open werk">Voeg werk toe met de knop rechtsboven.</Empty></div>}
+      {!taken.length && <div className="pane"><Empty title={gevonden ? 'Geen werk bij deze zoekopdracht' : 'Geen open werk'}>{gevonden ? 'Gebruik "+ Werk" bij de gevonden auto om iets toe te voegen.' : 'Voeg werk toe met de knop rechtsboven.'}</Empty></div>}
       {form && <TaakForm preset={form} onClose={() => setForm(null)} />}
     </div>
   );

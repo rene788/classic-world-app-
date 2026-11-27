@@ -445,3 +445,31 @@ end $$;
 
 -- Klaar. Controle: onderstaande regel toont alle tabellen met beveiliging aan.
 select tablename, rowsecurity as beveiligd from pg_tables where schemaname = 'public' order by tablename;
+
+-- Voorstellen (nov 2026): een monteur stelt werk voor, verkoop of beheer geeft akkoord
+alter table public.taken add column if not exists voorstel text;
+alter table public.taken drop constraint if exists taken_voorstel_check;
+alter table public.taken add constraint taken_voorstel_check check (voorstel is null or voorstel in ('open','afgewezen'));
+alter table public.taken add column if not exists voorgesteld_door uuid references public.profielen(id) on delete set null;
+alter table public.taken add column if not exists schatting_uren numeric;
+alter table public.taken add column if not exists schatting_eur numeric;
+alter table public.taken add column if not exists afwijs_reden text;
+create or replace function public.bewaak_voorstel() returns trigger language plpgsql set search_path = public as $$
+begin
+  -- Alleen ingelogde gebruikers zonder geld-rechten (monteurs) worden begrensd
+  if auth.uid() is not null and not public.ziet_geld() then
+    if tg_op = 'INSERT' then
+      new.voorstel := 'open';
+      new.voorgesteld_door := auth.uid();
+    elsif new.voorstel is distinct from old.voorstel then
+      raise exception 'Alleen verkoop of beheer kan een voorstel goedkeuren of afwijzen.';
+    end if;
+  end if;
+  if new.voorstel is not null and new.klaar then
+    raise exception 'Een voorstel kan pas worden afgevinkt na akkoord.';
+  end if;
+  return new;
+end $$;
+drop trigger if exists bewaak_voorstel on public.taken;
+create trigger bewaak_voorstel before insert or update on public.taken for each row execute function public.bewaak_voorstel();
+revoke execute on function public.bewaak_voorstel() from public, anon, authenticated;

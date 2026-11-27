@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useApp, Modal, Sel, Plate, Nr, Status, Loc, DelBtn, Field, useUrls, CarFoto, DocLink } from '../ui';
-import { werkers, Wie, Deadline, naamVan } from './Planning';
+import { werkers, Wie, Deadline, naamVan, VoorstelKaart } from './Planning';
 import {
   STATUSES, PART_ST, KOST_SOORT, ORDER_ST, FASES, BESTEMMING, CHECK_DEFAULT, UITL, carName, fmtD, eur, eur2, km, hrs, sum,
   daysSince, num, today, carCost, wishText, shrink, safeName, rid, thumb, opVoorraad, eurVrij, isCons, CONS_AFSPRAAK,
@@ -171,8 +171,11 @@ function Taken({ c }) {
   const add = async (e) => {
     e.preventDefault();
     if (!t.trim()) return;
-    if (await act((db) => db.insert('taken', { auto_id: c.id, tekst: t.trim(), toegewezen_aan: m || null, deadline: dl || null, volgorde: list.length }), m ? `Taak voor ${naamVan(d, m)}` : null, ['taken'])) { setT(''); setDl(''); }
+    const vs = !geld; // monteur: wordt een voorstel dat verkoop/beheer goedkeurt
+    if (await act((db) => db.insert('taken', { auto_id: c.id, tekst: t.trim(), toegewezen_aan: m || null, deadline: dl || null, volgorde: list.length, ...(vs ? { voorstel: 'open', voorgesteld_door: uid } : {}) }),
+      vs ? 'Voorstel verstuurd. Verkoop of beheer keurt het goed.' : m ? `Taak voor ${naamVan(d, m)}` : null, ['taken'])) { setT(''); setDl(''); }
   };
+  const voorstellen = d.voorstellen.filter((x) => x.auto_id === c.id && (x.voorstel === 'open' || geld || x.voorgesteld_door === uid));
   const wijs = (x, id) => act((db) => db.update('taken', x.id, { toegewezen_aan: id }), null, ['taken']);
   const toggle = (x) => act((db) => db.update('taken', x.id, { klaar: !x.klaar, klaar_door: !x.klaar ? uid : null, klaar_op: !x.klaar ? new Date().toISOString() : null }), null, ['taken']);
   return (
@@ -180,10 +183,10 @@ function Taken({ c }) {
       <h3>Takenlijst <span className="aux">{done} van {list.length} klaar</span>{list.length > 0 && <span className="bar"><i style={{ width: `${(done / list.length) * 100}%` }} /></span>}</h3>
       {werker && (
         <form className="add" onSubmit={add}>
-          <input className="in" value={t} onChange={(e) => setT(e.target.value)} placeholder="Nieuwe taak, bijv. remmen nalopen" aria-label="Nieuwe taak" />
+          <input className="in" value={t} onChange={(e) => setT(e.target.value)} placeholder={geld ? 'Nieuwe taak, bijv. remmen nalopen' : 'Voorstel, bijv. remschijven vervangen'} aria-label={geld ? 'Nieuwe taak' : 'Voorstel'} />
           <Sel value={m} onChange={setM} empty="Voor wie?" options={werkers(d).map((p) => [p.id, p.naam || p.email])} aria-label="Voor wie" style={{ flex: '0 1 150px' }} />
           <input className="in" type="date" style={{ flex: '0 1 150px' }} value={dl} onChange={(e) => setDl(e.target.value)} aria-label="Klaar voor (optioneel)" title="Klaar voor (optioneel)" />
-          <button className="btn">Toevoegen</button>
+          <button className="btn">{geld ? 'Toevoegen' : 'Voorstellen'}</button>
         </form>
       )}
       {!list.length ? <p className="note">Nog geen taken.</p> : list.map((x) => (
@@ -196,6 +199,12 @@ function Taken({ c }) {
           {geld && <DelBtn x onConfirm={() => act((db) => db.remove('taken', x.id), null, ['taken'])} />}
         </div>
       ))}
+      {voorstellen.length > 0 && (
+        <div className="vs-lijst" style={{ marginTop: 10 }}>
+          <h4 className="kp-h" style={{ margin: 0 }}>Voorstellen {geld ? 'om goed te keuren' : ''}</h4>
+          {voorstellen.map((x) => <VoorstelKaart key={x.id} t={x} toonAuto={false} />)}
+        </div>
+      )}
     </section>
   );
 }

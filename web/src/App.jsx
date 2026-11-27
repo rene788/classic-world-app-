@@ -101,7 +101,10 @@ function Werkplaats({ uid, email }) {
       }
       return out.sort((a, b) => (a.informed - b.informed) || a.klant.naam.localeCompare(b.klant.naam, 'nl'));
     };
-    return { ...raw, finByAuto, settings, names, autoById, boxen, wensenByKlant, prijsOf, matchesForCar };
+    // Voorstellen van monteurs zijn nog geen echte taken: apart houden tot verkoop/beheer akkoord geeft
+    const taken = raw.taken.filter((t) => !t.voorstel);
+    const voorstellen = raw.taken.filter((t) => t.voorstel);
+    return { ...raw, taken, voorstellen, finByAuto, settings, names, autoById, boxen, wensenByKlant, prijsOf, matchesForCar };
   }, [raw]);
 
   const act = useCallback(async (fn, ok, tables) => {
@@ -141,7 +144,7 @@ function Werkplaats({ uid, email }) {
   const teKeuren = zietGeld(rol) ? raw.uren.filter((h) => h.status === 'ingediend').length : 0;
   const labels = {
     overzicht: ['Overzicht'], voorraad: ['Voorraad', showroom ? raw.autos.filter((c) => klant.statussen.includes(c.status)).length : raw.autos.filter(opVoorraad).length],
-    werk: ['Mijn werk', raw.taken.filter((t) => !t.klaar && t.toegewezen_aan === uid).length || null], planning: ['Planning'], matches: ['Matches', openMatches || null, true], klanten: ['Klanten', raw.klanten.length],
+    werk: ['Mijn werk', raw.taken.filter((t) => !t.klaar && !t.voorstel && t.toegewezen_aan === uid).length || null], planning: ['Planning', zietGeld(rol) ? raw.taken.filter((t) => t.voorstel === 'open').length || null : null, true], matches: ['Matches', openMatches || null, true], klanten: ['Klanten', raw.klanten.length],
     aanbod: ['Gevonden aanbod', raw.aanbod.filter((x) => x.status === 'nieuw').length || null, true],
     bestellingen: ['Bestellingen'], uren: [rol === 'monteur' ? 'Mijn uren' : 'Uren', isBeheerder(rol) && teKeuren ? teKeuren : null, true],
     beheer: ['Beheer'],
