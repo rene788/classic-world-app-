@@ -515,3 +515,70 @@ h2.vt{font-family:var(--f-display);font-weight:500;font-size:20px;margin:0}
 .hero-acties .dropvak b{font-size:12.5px}
 .hero-acties > .btn.danger,.hero-acties > .del{margin-left:auto}
 @media (max-width:900px){.hero{min-height:0;flex-direction:column;align-items:stretch}.hero-img,.hero-leeg{position:relative;height:220px}.hero::after{display:none}.hero-kaart{margin:-30px 12px 12px}}
+
+/* ---------- Sinds je laatste dienst ---------- */
+.sinds{display:flex;flex-direction:column;gap:16px}
+.sinds-kop{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.sinds-k{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;padding:12px 16px;min-width:0}
+.sinds-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sinds-h .linkish{font-family:var(--f-display);font-size:17px;font-weight:500;color:var(--ink)}
+.sinds-h .btn{margin-left:auto}
+.sinds-l{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column}
+.sinds-l li{display:grid;grid-template-columns:118px 1fr;gap:10px;padding:6px 0;border-top:1px dashed var(--line);font-size:13.5px}
+.sinds-t{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;padding-top:1px}
+.sinds-w{min-width:0}
+@media (max-width:560px){.sinds-l li{grid-template-columns:1fr;gap:2px}}
+
+/* ---------- Werkplaats-tabel en reparaties ---------- */
+.wp-auto{display:flex;gap:10px;align-items:center;min-width:180px}
+.wp-auto>span:last-child{display:flex;flex-direction:column;font-weight:600}
+.wp-auto .note{font-weight:400;font-size:12px}
+.wp-part{font-size:13px;white-space:nowrap}
+.wp-part+.wp-part{margin-top:3px}
+.rep-foto{font-family:var(--f-merk);font-size:13px;color:var(--accent);opacity:1}
+tr.rij-laat td:first-child{box-shadow:inset 3px 0 0 var(--danger)}
+.in.sm{padding:4px 8px;font-size:12.5px;width:auto}
+.st-sel.ok{color:var(--ok);font-weight:600}.st-sel.warn{color:var(--warn);font-weight:600}.st-sel.match{color:var(--accent);font-weight:600}
+
+/* ---------- Per leverancier ---------- */
+.lev-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+@media (max-width:420px){.lev-grid{grid-template-columns:1fr}}
+.lev{background:var(--surface);border:1px solid var(--line);border-radius:10px;min-width:0;display:flex;flex-direction:column}
+.lev-h{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.lev-h h3{font-family:var(--f-display);font-weight:500;font-size:18px;margin:0 0 2px}
+.lev-l{list-style:none;margin:0;padding:4px 14px 8px}
+.lev-l li{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line)}
+.lev-l li:last-child{border-bottom:0}
+.lev-w{display:flex;flex-direction:column;min-width:0;flex:1;font-size:13.5px}
+.lev-w .note{font-size:12px}
+
+/* ---------- Financiën ---------- */
+.fin{display:flex;flex-direction:column;gap:14px}
+.fin-kpis{margin:0}
+.fin-kpis .kpi{text-align:left;cursor:pointer;font:inherit;color:inherit;display:flex;flex-direction:column}
+.fin-kpis .kpi-v{font-size:26px}
+.fin-kpis .kpi.aan{border-color:var(--gold);box-shadow:inset 0 -3px 0 var(--gold),var(--shadow)}
+.fin-pane{padding:18px 20px}
+.fin-body{display:flex;flex-direction:column;gap:14px;min-width:0}
+@media (max-width:640px){.fin-pane{padding:14px}}
+
+/* ---------- Rondleiding ---------- */
+.tour{position:fixed;right:max(20px,env(safe-area-inset-right,0px));bottom:max(20px,env(safe-area-inset-bottom,0px));z-index:60;width:min(380px,calc(100vw - 32px));
+  background:var(--side);color:var(--side-ink);border-radius:12px;padding:16px 18px;box-shadow:0 12px 40px rgba(0,0,0,.28);border-top:3px solid var(--gold)}
+.tour .eyebrow,.sinds .eyebrow{display:block;color:var(--gold);margin:0}
+.sinds .eyebrow{color:var(--muted)}
+.tour h3{font-family:var(--f-display);font-weight:500;font-size:21px;margin:6px 0 6px}
+.tour p{margin:0;font-size:14px;line-height:1.5;color:var(--side-ink);opacity:.9}
+.tour .x{color:var(--side-muted)}
+.tour-k{display:flex;justify-content:space-between;align-items:center}
+.tour-bol{display:flex;gap:5px;margin:14px 0 12px}
+.tour-bol i{width:6px;height:6px;border-radius:50%;background:var(--side-line)}
+.tour-bol i.af{background:var(--side-muted)}
+.tour-bol i.aan{background:var(--gold);width:16px;border-radius:3px}
+.tour-f{display:flex;gap:6px;align-items:center}
+.tour .btn{border-color:var(--side-line);background:var(--side-2);color:var(--side-ink)}
+.tour .btn.primary{background:var(--gold);border-color:var(--gold);color:#1B160D}
+.tour .btn.ghost{background:none;border-color:transparent;color:var(--side-muted)}
+@media (max-width:560px){.tour{left:16px;right:16px;width:auto;bottom:max(16px,env(safe-area-inset-bottom,0px))}}
+.wp-sinds{white-space:nowrap;font-size:13px}
+.wp-sinds .note{display:block;font-size:12px}

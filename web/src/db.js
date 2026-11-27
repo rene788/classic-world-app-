@@ -7,8 +7,9 @@ export const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
 });
 
 export const TABLES = ['profielen', 'autos', 'auto_financien', 'taken', 'onderdelen', 'uren', 'klokken', 'kosten',
-  'bestellingen', 'afleverlijst', 'media', 'boxen', 'klanten', 'zoekwensen', 'contactmomenten', 'aanbod', 'instellingen'];
-const KEYS = { auto_financien: 'auto_id', klokken: 'monteur_id', boxen: 'locatie', instellingen: 'sleutel' };
+  'bestellingen', 'afleverlijst', 'media', 'boxen', 'klanten', 'zoekwensen', 'contactmomenten', 'aanbod', 'instellingen',
+  'wijzigingen', 'gezien', 'reparaties'];
+const KEYS = { auto_financien: 'auto_id', klokken: 'monteur_id', boxen: 'locatie', instellingen: 'sleutel', gezien: 'auto_id' };
 export const keyOf = (t) => KEYS[t] || 'id';
 
 const check = ({ data, error }) => { if (error) throw error; return data; };
@@ -24,8 +25,12 @@ export const db = {
 
   async all(t) {
     let out = [];
+    // Van het wijzigingenlogboek alleen de laatste 45 dagen ophalen
+    const sinds = new Date(Date.now() - 45 * 864e5).toISOString();
     for (let from = 0; ; from += 1000) {
-      const rows = check(await sb.from(t).select('*').range(from, from + 999));
+      let qy = sb.from(t).select('*');
+      if (t === 'wijzigingen') qy = qy.gte('aangemaakt', sinds).order('aangemaakt', { ascending: false });
+      const rows = check(await qy.range(from, from + 999));
       out = out.concat(rows);
       if (rows.length < 1000) return out;
     }

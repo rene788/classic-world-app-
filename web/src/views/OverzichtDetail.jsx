@@ -353,3 +353,6 @@ function Consignatie({ open }) {
     </>
   );
 }
+
+// Dezelfde panelen, los te gebruiken op de pagina Financiën
+export const PANELEN = { voorraad: Voorraad, waarde: Waarde, investering: Investering, marge: Marge, verkocht: Verkocht, uren: Uren, consignatie: Consignatie };

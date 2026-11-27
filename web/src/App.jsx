@@ -12,6 +12,11 @@ import Klanten, { Matches } from './views/Klanten';
 import Bestellingen from './views/Bestellingen';
 import Aanbod from './views/Aanbod';
 import Beheer from './views/Beheer';
+import SindsDienst, { ongezien } from './views/SindsDienst';
+import Reparaties, { repOpen } from './views/Reparaties';
+import WerkplaatsTabel, { werkplaatsRijen } from './views/Werkplaats';
+import Financien from './views/Financien';
+import Rondleiding, { rondleidingAlGezien } from './Rondleiding';
 
 const EMPTY = Object.fromEntries(TABLES.map((t) => [t, []]));
 
@@ -45,6 +50,7 @@ function Werkplaats({ uid, email }) {
   // Wordt per apparaat onthouden, zodat verversen de modus niet uitzet.
   const [klant, setKlantRaw] = useState(() => { try { return JSON.parse(localStorage.getItem('klantmodus')) || null; } catch { return null; } });
   const [klantStart, setKlantStart] = useState(false);
+  const [tour, setTour] = useState(false);
   const setKlant = (v) => { setKlantRaw(v); try { if (v) localStorage.setItem('klantmodus', JSON.stringify(v)); else localStorage.removeItem('klantmodus'); } catch { /* geen opslag */ } };
   const pending = useRef(new Set());
   const timer = useRef(null);
@@ -117,13 +123,17 @@ function Werkplaats({ uid, email }) {
     } catch (e) { toast(errText(e), true); return false; }
   }, [reload, toast]);
 
+  // Rondleiding één keer per apparaat vanzelf starten, zodra iemand met een werkende rol binnen is
+  const tourKlaar = loaded && !!me && rol !== 'geblokkeerd' && !klant;
+  useEffect(() => { if (tourKlaar && !rondleidingAlGezien()) setTour(true); }, [tourKlaar]);
+
   zetVerbergBedragen(!!klant);
   const showroom = klant && klant.modus !== 'hele';
   const rolTabs = !rol ? [] : zietGeld(rol)
-    ? ['overzicht', 'voorraad', 'werk', 'planning', 'matches', 'klanten', 'aanbod', 'bestellingen', 'uren', ...(isBeheerder(rol) ? ['beheer'] : [])]
-    : rol === 'monteur' ? ['werk', 'planning', 'voorraad', 'uren'] : rol === 'meekijker' ? ['voorraad'] : [];
+    ? ['overzicht', 'sinds', 'voorraad', 'werk', 'werkplaats', 'planning', 'reparaties', 'matches', 'klanten', 'aanbod', 'bestellingen', 'financien', 'uren', ...(isBeheerder(rol) ? ['beheer'] : [])]
+    : rol === 'monteur' ? ['werk', 'sinds', 'werkplaats', 'planning', 'reparaties', 'voorraad', 'uren'] : rol === 'meekijker' ? ['voorraad'] : [];
   // Klantmodus: showroom = alleen voorraad; hele app = alles behalve tabbladen met klantgegevens of inkoopprijzen
-  const tabs = showroom ? ['voorraad'] : klant ? rolTabs.filter((t) => !['klanten', 'matches', 'beheer', 'aanbod', 'bestellingen', 'planning'].includes(t)) : rolTabs;
+  const tabs = showroom ? ['voorraad'] : klant ? rolTabs.filter((t) => !['klanten', 'matches', 'beheer', 'aanbod', 'bestellingen', 'planning', 'sinds', 'werkplaats', 'reparaties', 'financien'].includes(t)) : rolTabs;
   const view = tabs.includes(nav.view) ? nav.view : tabs[0];
 
   const go = useCallback((v, extra = {}) => { setNav((n) => ({ ...n, view: v, ...extra })); window.scrollTo(0, 0); }, []);
@@ -149,13 +159,18 @@ function Werkplaats({ uid, email }) {
     aanbod: ['Gevonden aanbod', raw.aanbod.filter((x) => x.status === 'nieuw').length || null, true],
     bestellingen: ['Bestellingen'], uren: [rol === 'monteur' ? 'Mijn uren' : 'Uren', isBeheerder(rol) && teKeuren ? teKeuren : null, true],
     beheer: ['Beheer'],
+    sinds: ['Wat is er nieuw', magWerken(rol) ? ongezien(d, uid).length || null : null, true],
+    werkplaats: ['Werkplaats', magWerken(rol) ? werkplaatsRijen(d).length || null : null],
+    reparaties: ['Reparaties', (raw.reparaties || []).filter(repOpen).length || null],
+    financien: ['Financiën'],
   };
 
   const ctx = { d, raw, me, rol, uid, email, act, reload, toast, go, openCar, openKlant, nav, setNav,
     geld: zietGeld(rol) && !klant, beheerder: isBeheerder(rol) && !klant, werker: magWerken(rol) && !klant, klant, showroom };
 
   const View = { overzicht: Overzicht, voorraad: Voorraad, werk: MijnWerk, planning: Planning, matches: Matches, klanten: Klanten,
-    aanbod: Aanbod, bestellingen: Bestellingen, uren: Uren, beheer: Beheer }[view];
+    aanbod: Aanbod, bestellingen: Bestellingen, uren: Uren, beheer: Beheer,
+    sinds: SindsDienst, werkplaats: WerkplaatsTabel, reparaties: Reparaties, financien: Financien }[view];
 
   return (
     <AppCtx.Provider value={ctx}>
@@ -186,6 +201,12 @@ function Werkplaats({ uid, email }) {
           })}
         </nav>
         <div className="side-voet">
+          {me && rol !== 'geblokkeerd' && !klant && (
+            <button className="side-item" onClick={() => { setMenuOpen(false); setTour(true); }} title="Korte uitleg van alle schermen">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M15.5 8.5l-2 5-5 2 2-5z" /></svg>
+              <span className="side-l">Rondleiding</span>
+            </button>
+          )}
           {me && rol !== 'geblokkeerd' && (
             <button className={`side-item km-knop${klant ? ' aan' : ''}`} aria-pressed={!!klant}
               onClick={() => { setMenuOpen(false); if (klant) setKlant(null); else setKlantStart(true); }} title={klant ? 'Klantmodus uitzetten' : 'Laat de app zien zonder prijzen en interne gegevens'}>
@@ -236,6 +257,7 @@ function Werkplaats({ uid, email }) {
       </main>
       </div>
       </div>
+      {tour && loaded && me && !klant && <Rondleiding tabs={tabs} go={go} klantmodus={rol !== 'geblokkeerd'} onClose={() => setTour(false)} />}
       {toastMsg && <div className={`toast${toastMsg.err ? ' err' : ''}`} role="status">{toastMsg.msg}</div>}
     </AppCtx.Provider>
   );
@@ -268,9 +290,9 @@ function KlantmodusStart({ onClose, onStart }) {
 
 // Menu in de zijbalk: groepen zoals in het autodossier-ontwerp
 const MENU = [
-  { items: ['overzicht', 'voorraad', 'klanten', 'matches'] },
-  { kop: 'Werkplaats', items: ['werk', 'planning', 'uren', 'bestellingen'] },
-  { kop: 'Beheer', items: ['aanbod', 'beheer'] },
+  { items: ['overzicht', 'sinds', 'voorraad', 'klanten', 'matches'] },
+  { kop: 'Werkplaats', items: ['werk', 'werkplaats', 'planning', 'reparaties', 'uren', 'bestellingen'] },
+  { kop: 'Beheer', items: ['financien', 'aanbod', 'beheer'] },
 ];
 const groet = () => { const h = new Date().getHours(); return h < 12 ? 'Goedemorgen' : h < 18 ? 'Goedemiddag' : 'Goedenavond'; };
 
@@ -284,6 +306,10 @@ const ICONEN = {
   uren: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
   bestellingen: <><path d="M3 7l9-4 9 4-9 4-9-4z" /><path d="M3 7v10l9 4 9-4V7M12 11v10" /></>,
   aanbod: <><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5M8 11h6M11 8v6" /></>,
+  sinds: <><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5M12 7v5l3 2" /></>,
+  werkplaats: <><path d="M14.7 6.3a4 4 0 0 0-5.4 5.2L3.5 17.3a1.8 1.8 0 0 0 2.5 2.5l5.8-5.8a4 4 0 0 0 5.2-5.4l-2.4 2.4-2.1-.4-.4-2.1z" /></>,
+  reparaties: <><path d="M4 17V7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10" /><path d="M2 17h20M9 21h6M9 9h6M9 13h3" /></>,
+  financien: <><path d="M17.5 6.5A7 7 0 1 0 17.5 17.5" /><path d="M4 10h9M4 14h9" /></>,
   beheer: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></>,
 };
 export function Icoon({ naam, size = 17 }) {
