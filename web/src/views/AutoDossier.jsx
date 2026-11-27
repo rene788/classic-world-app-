@@ -182,16 +182,32 @@ function Hero({ c, children }) {
     setBusy(false);
   };
   const weg = () => act(async (db) => { await db.update('autos', c.id, { foto: null }); try { await db.removeFile(c.foto); } catch { /* mag blijven staan */ } }, 'Profielfoto verwijderd', ['autos']);
+  // Een foto op de hele fotovlak slepen werkt ook (alleen verkoop en beheer)
+  const [sleep, setSleep] = useState(false);
+  const dropProps = geld ? {
+    onDragOver: (e) => { if ([...(e.dataTransfer?.items || [])].some((i) => i.kind === 'file')) { e.preventDefault(); setSleep(true); } },
+    onDragLeave: (e) => { if (!e.currentTarget.contains(e.relatedTarget)) setSleep(false); },
+    onDrop: (e) => { e.preventDefault(); setSleep(false); const f = [...(e.dataTransfer?.files || [])].find((x) => x.type.startsWith('image/')); if (f) kies(f); },
+  } : {};
+  const icoon = <svg viewBox="0 0 24 24" width="72" height="72" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 15l2-5a2 2 0 0 1 2-1.4h10A2 2 0 0 1 19 10l2 5v3h-2.5M5.5 18H3v-3m5.5 3h7" /><circle cx="7" cy="18" r="1.6" /><circle cx="17" cy="18" r="1.6" /></svg>;
   return (
-    <section className="hero">
+    <section className={`hero${sleep ? ' sleep' : ''}`} {...dropProps}>
       {urls[c.foto] ? <img className="hero-img" src={urls[c.foto]} alt={`Foto ${carName(c)}`} />
-        : <div className="hero-leeg"><svg viewBox="0 0 24 24" width="72" height="72" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 15l2-5a2 2 0 0 1 2-1.4h10A2 2 0 0 1 19 10l2 5v3h-2.5M5.5 18H3v-3m5.5 3h7" /><circle cx="7" cy="18" r="1.6" /><circle cx="17" cy="18" r="1.6" /></svg></div>}
-      {geld && (
-        <div className="hero-foto pfoto-k">
-          <label className="btn sm filebtn">{busy ? 'Bezig…' : c.foto ? 'Andere foto' : '+ Profielfoto'}
+        : geld ? (
+          <label className="hero-leeg hero-kies">
+            {icoon}
+            <span className="hero-kies-t">{busy ? 'Foto wordt opgeslagen…' : 'Klik hier om een profielfoto toe te voegen'}</span>
+            <span className="hero-kies-s">of sleep een foto hierheen</span>
             <input type="file" accept="image/*" disabled={busy} onChange={(e) => { kies(e.target.files[0]); e.target.value = ''; }} />
           </label>
-          {c.foto && !busy && <DelBtn x label="Profielfoto verwijderen" onConfirm={weg} />}
+        ) : <div className="hero-leeg">{icoon}</div>}
+      {sleep && <div className="hero-drop">Laat los om als profielfoto te gebruiken</div>}
+      {geld && c.foto && (
+        <div className="hero-foto pfoto-k">
+          <label className="btn sm filebtn">{busy ? 'Bezig…' : 'Andere foto'}
+            <input type="file" accept="image/*" disabled={busy} onChange={(e) => { kies(e.target.files[0]); e.target.value = ''; }} />
+          </label>
+          {!busy && <DelBtn x label="Profielfoto verwijderen" onConfirm={weg} />}
         </div>
       )}
       <div className="hero-kaart">{children}</div>

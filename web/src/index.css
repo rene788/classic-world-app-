@@ -719,3 +719,16 @@ label.m-item.gi{cursor:pointer;align-items:center}
 .sinds-k.k-verkocht{border-left-color:var(--ok)}
 .sinds-k.k-aangekomen{border-left-color:var(--st-onderweg)}
 .sinds-w .chip{margin-right:4px;font-size:11px}
+
+/* ---------- Profielfoto: lege fotovlak is zelf de knop ---------- */
+.hero-kies{cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:56px;gap:6px;transition:background .15s,color .15s}
+.hero-kies:hover,.hero-kies:focus-within{background:color-mix(in srgb,var(--gold) 10%,var(--surface-2));color:var(--accent)}
+.hero-kies input{position:absolute;width:1px;height:1px;opacity:0}
+.hero-kies-t{font-weight:600;font-size:15px;color:var(--ink);text-decoration:underline;text-decoration-color:var(--gold);text-underline-offset:4px}
+.hero-kies-s{font-size:13px}
+.hero.sleep{outline:3px dashed var(--gold);outline-offset:-6px}
+.hero-drop{position:absolute;inset:0;z-index:3;display:grid;place-items:center;background:color-mix(in srgb,var(--side) 55%,transparent);color:#fff;font-weight:600;font-size:16px;pointer-events:none}
+@media (max-width:900px){.hero-kies{padding-top:40px}}
+.hero-kies-t{text-decoration:none;background:var(--surface);border:1px solid var(--gold);border-radius:8px;padding:10px 16px;box-shadow:var(--shadow)}
+.hero-kies:hover .hero-kies-t{background:var(--gold);color:#1B160D}
+@media (min-width:901px){.hero-kies{align-items:flex-end;padding:40px 44px 0 0;text-align:right}.hero-kies svg{margin-right:60px}}
