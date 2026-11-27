@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useApp, Status, Empty, CarFoto, useUrls } from '../ui';
 import { carLabel, fmtD, daysSince, opVoorraad, norm, LOCL } from '../lib';
-import { naamVan, teLaat } from './Planning';
+import { naamVan, teLaat, TaakForm } from './Planning';
 import { REPL, repOpen } from './Reparaties';
 
 // Eén regel per auto die in de werkplaats is of nog werk heeft, plus lopende klantreparaties.
@@ -25,8 +25,9 @@ export function werkplaatsRijen(d) {
 }
 
 export default function Werkplaats() {
-  const { d, go, openCar, werker } = useApp();
+  const { d, go, openCar, werker, geld } = useApp();
   const [q, setQ] = useState('');
+  const [form, setForm] = useState(null);
   const [soort, setSoort] = useState('');
   const s = norm(q);
   const alle = werkplaatsRijen(d);
@@ -51,10 +52,11 @@ export default function Werkplaats() {
           {[['', 'Alles'], ['auto', 'Eigen auto\'s'], ['rep', 'Reparaties']].map(([k, l]) => <button key={k} aria-pressed={soort === k} onClick={() => setSoort(k)}>{l}</button>)}
         </div>
         {werker && <button className="btn" onClick={() => go('planning')}>Naar planning</button>}
+        {werker && <button className="btn primary" onClick={() => setForm({})}>{geld ? '+ Werk toevoegen' : '+ Werk voorstellen'}</button>}
       </div>
       {!rijen.length ? <div className="pane"><Empty title="Werkplaats is leeg">Auto's met open taken, bestelde onderdelen of status 'In werkplaats' verschijnen hier vanzelf.</Empty></div> : (
         <div className="tw"><table className="wp-tabel">
-          <thead><tr><th>Auto</th><th>Wat</th><th>Wie</th><th>Status</th><th>Wacht op</th><th>Sinds</th></tr></thead>
+          <thead><tr><th>Auto</th><th>Wat</th><th>Wie</th><th>Status</th><th>Wacht op</th><th>Sinds</th>{werker && <th className="wp-act"><span className="sr-only">Acties</span></th>}</tr></thead>
           <tbody>{rijen.map((x) => x.c ? (
             <tr key={x.key} className={`click${x.laat ? ' rij-laat' : ''}`} onClick={() => openCar(x.c.id)}>
               <td><div className="wp-auto"><CarFoto c={x.c} url={fotos[x.c.foto]} sm /><span>{carLabel(x.c)}<span className="note">{x.c.locatie ? LOCL[x.c.locatie] || x.c.locatie : ''}</span></span></div></td>
@@ -63,6 +65,7 @@ export default function Werkplaats() {
               <td><Status s={x.c.status} />{x.laat && <span className="chip bad" style={{ marginLeft: 6 }}>te laat</span>}</td>
               <td>{x.parts.length ? x.parts.map((o) => <div key={o.id} className="wp-part"><span className={`chip${o.status === 'nodig' ? ' warn' : ''}`}>{o.status === 'nodig' ? 'te bestellen' : 'besteld'}</span> {o.onderdeel}{o.verwacht && <span className="note"> · {fmtD(o.verwacht)}</span>}</div>) : <span className="note">—</span>}</td>
               <td className="wp-sinds">{x.sinds ? <>{fmtD(x.sinds)}<span className="note">{daysSince(x.sinds) === 1 ? '1 dag' : `${daysSince(x.sinds)} dagen`}</span></> : '—'}</td>
+              {werker && <td className="wp-act"><button className="btn sm" onClick={(e) => { e.stopPropagation(); setForm({ auto_id: x.c.id }); }}>{geld ? '+ Werk' : '+ Voorstel'}</button></td>}
             </tr>
           ) : (
             <tr key={x.key} className={`click${x.laat ? ' rij-laat' : ''}`} onClick={() => go('reparaties')}>
@@ -72,10 +75,12 @@ export default function Werkplaats() {
               <td><span className="chip">{REPL[x.r.status]}</span>{x.laat && <span className="chip bad" style={{ marginLeft: 6 }}>te laat</span>}</td>
               <td>{x.r.status === 'wacht' ? <span className="chip warn">onderdelen</span> : <span className="note">—</span>}</td>
               <td className="wp-sinds">{x.sinds ? <>{fmtD(x.sinds)}<span className="note">{daysSince(x.sinds) === 1 ? '1 dag' : `${daysSince(x.sinds)} dagen`}</span></> : '—'}</td>
+              {werker && <td className="wp-act" />}
             </tr>
           ))}</tbody>
         </table></div>
       )}
+      {form && <TaakForm preset={form} onClose={() => setForm(null)} />}
     </div>
   );
 }
