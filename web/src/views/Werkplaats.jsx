@@ -62,7 +62,7 @@ export default function Werkplaats() {
               <td><div className="wp-auto"><CarFoto c={x.c} url={fotos[x.c.foto]} sm /><span>{carLabel(x.c)}<span className="note">{d.locNaam(x.c.locatie)}</span></span></div></td>
               <td>{x.taken.length ? <>{x.taken[0].tekst}{x.taken.length > 1 && <span className="note"> + {x.taken.length - 1} meer</span>}</> : <span className="note">Geen open taken</span>}</td>
               <td>{x.nu.length ? <span className="chip live">● {x.nu.join(', ')}</span> : x.wie.length ? x.wie.join(', ') : <span className="note">Nog niemand</span>}</td>
-              <td><Status s={x.c.status} />{x.laat && <span className="chip bad" style={{ marginLeft: 6 }}>te laat</span>}</td>
+              <td><Status s={x.c.status} c={x.c} />{x.laat && <span className="chip bad" style={{ marginLeft: 6 }}>te laat</span>}</td>
               <td>{x.parts.length ? x.parts.map((o) => <div key={o.id} className="wp-part"><span className={`chip${o.status === 'nodig' ? ' warn' : ''}`}>{o.status === 'nodig' ? 'te bestellen' : 'besteld'}</span> {o.onderdeel}{o.verwacht && <span className="note"> · {fmtD(o.verwacht)}</span>}</div>) : <span className="note">—</span>}</td>
               <td className="wp-sinds">{x.sinds ? <>{fmtD(x.sinds)}<span className="note">{daysSince(x.sinds) === 1 ? '1 dag' : `${daysSince(x.sinds)} dagen`}</span></> : '—'}</td>
               {werker && <td className="wp-act"><button className="btn sm" onClick={(e) => { e.stopPropagation(); setForm({ auto_id: x.c.id }); }}>{geld ? '+ Werk' : '+ Voorstel'}</button></td>}

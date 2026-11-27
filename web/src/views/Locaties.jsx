@@ -170,7 +170,7 @@ function Verplaats({ c, onClose, verplaats, openCar }) {
         <button className="btn" onClick={onClose}>{werker ? 'Annuleren' : 'Sluiten'}</button>
         {werker && <button className="btn primary" onClick={opslaan}>Verplaatsen</button>}
       </>}>
-      <div className="pk-m"><Status s={c.status} /><span className="note">Nu: <b>{d.locNaam(c.locatie) || 'geen locatie'}</b>{c.locatie_info ? ` (${c.locatie_info})` : ''}{dg != null && c.locatie ? ` · ${dg === 0 ? 'sinds vandaag' : `${dg} ${dg === 1 ? 'dag' : 'dagen'}`}` : ''}</span></div>
+      <div className="pk-m"><Status s={c.status} c={c} /><span className="note">Nu: <b>{d.locNaam(c.locatie) || 'geen locatie'}</b>{c.locatie_info ? ` (${c.locatie_info})` : ''}{dg != null && c.locatie ? ` · ${dg === 0 ? 'sinds vandaag' : `${dg} ${dg === 1 ? 'dag' : 'dagen'}`}` : ''}</span></div>
       {werker && <>
         <Field label="Verplaatsen naar">
           <select className="in" value={naar} onChange={(e) => setNaar(e.target.value)}>

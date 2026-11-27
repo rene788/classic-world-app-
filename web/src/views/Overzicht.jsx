@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useApp } from '../ui';
 import KpiPaneel from './OverzichtDetail';
-import { EXTERN_TE_LANG, UITL, carCost, carLabel, carName, daysSince, eur, fmtD, hrs, periodRange, plusDays, sum, today, opVoorraad, isCons } from '../lib';
+import { EXTERN_TE_LANG, UITL, carCost, carLabel, carName, daysSince, eur, fmtD, hrs, periodRange, plusDays, sum, today, opVoorraad, isCons, reserveringVerlopen } from '../lib';
 
 export default function Overzicht() {
-  const { d, go, openCar, openKlant, beheerder, klant, tabs } = useApp();
+  const { d, go, openCar, openKlant, beheerder, klant, tabs, geld } = useApp();
   const [kpi, setKpi] = useState(null);
   const alle = d.autos.filter(opVoorraad); // alles wat fysiek bij ons staat of onderweg is
   const stock = alle.filter((c) => !isCons(c)); // eigen voorraad
@@ -26,6 +26,8 @@ export default function Overzicht() {
   const laat = d.taken.filter((x) => !x.klaar && x.deadline && x.deadline < t && (!x.auto_id || (d.autoById[x.auto_id] && opVoorraad(d.autoById[x.auto_id]))));
   const vsOpen = d.voorstellen.filter((x) => x.voorstel === 'open').length;
   if (!klant && vsOpen) sig.push({ lvl: 'warn', go: () => go('planning'), t: `${vsOpen} voorstel${vsOpen > 1 ? 'len' : ''} van monteurs wacht${vsOpen > 1 ? 'en' : ''} op akkoord`, s: 'Keur goed of wijs af bij Planning' });
+  const resVerlopen = d.autos.filter(reserveringVerlopen);
+  if (geld && resVerlopen.length) resVerlopen.forEach((c) => sig.push({ lvl: 'warn', car: c.id, t: `Reservering verlopen: ${carLabel(c)}`, s: `Was gereserveerd tot ${fmtD(c.gereserveerd_tot)}. Verlengen, opheffen of verkocht?` }));
   if (!klant && laat.length) sig.push({ lvl: 'bad', go: () => go('planning'), t: `${laat.length} ta${laat.length > 1 ? 'ken zijn' : 'ak is'} over de datum`, s: 'Bekijk ze bij Planning' });
   if (beheerder && wacht) sig.push({ lvl: 'warn', go: () => go('uren'), t: `${wacht} urenregel${wacht > 1 ? 's wachten' : ' wacht'} op goedkeuring`, s: 'Keur ze goed bij Uren' });
   for (const c of d.autos) {

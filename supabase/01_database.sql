@@ -685,3 +685,58 @@ begin
 end $$;
 revoke execute on function public.verplaats_auto(uuid, text, text) from public, anon;
 grant execute on function public.verplaats_auto(uuid, text, text) to authenticated;
+-- ===== Reserveren + duidelijkere meldingen in "Wat is er nieuw" (verkocht, aangekomen, gereserveerd) (nov 2026) =====
+alter table public.autos add column if not exists gereserveerd_op timestamptz;
+alter table public.autos add column if not exists gereserveerd_tot date;
+alter table public.autos add column if not exists gereserveerd_voor uuid references public.klanten(id) on delete set null;
+create index if not exists autos_gereserveerd_voor on public.autos (gereserveerd_voor);
+
+-- Verkocht of geannuleerd: de reservering vervalt vanzelf
+create or replace function public.reservering_opruimen() returns trigger language plpgsql set search_path = public as $$
+begin
+  if new.status in ('verkocht', 'geannuleerd') then
+    new.gereserveerd_op := null; new.gereserveerd_tot := null; new.gereserveerd_voor := null;
+  end if;
+  return new;
+end $$;
+revoke execute on function public.reservering_opruimen() from public, anon, authenticated;
+drop trigger if exists reservering_opruimen on public.autos;
+create trigger reservering_opruimen before insert or update of status, gereserveerd_op on public.autos for each row execute function public.reservering_opruimen();
+
+-- Logboek: verkocht, aangekomen en reserveringen krijgen een eigen soort en tekst (zonder klantnaam: monteurs lezen mee)
+create or replace function public.log_autos() returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if tg_op = 'INSERT' then
+    perform public.log_wijziging(new.id, 'auto', case when new.status = 'onderweg' then 'Nieuwe auto toegevoegd (onderweg)' else 'Nieuwe auto toegevoegd' end);
+  else
+    if new.status is distinct from old.status then
+      if new.status = 'verkocht' then
+        perform public.log_wijziging(new.id, 'verkocht', 'Verkocht');
+      elsif old.status = 'onderweg' and new.status not in ('onderweg', 'geannuleerd') then
+        perform public.log_wijziging(new.id, 'aangekomen', 'Aangekomen' || case when new.status <> 'binnen' then ' · ' || public.status_label(new.status) else '' end);
+      elsif new.status = 'geannuleerd' then
+        perform public.log_wijziging(new.id, 'status', 'Aankoop geannuleerd');
+      else
+        perform public.log_wijziging(new.id, 'status', 'Status: ' || public.status_label(old.status) || ' → ' || public.status_label(new.status));
+      end if;
+    end if;
+    if old.gereserveerd_op is null and new.gereserveerd_op is not null then
+      perform public.log_wijziging(new.id, 'gereserveerd', 'Gereserveerd' || coalesce(' tot ' || to_char(new.gereserveerd_tot, 'DD-MM-YYYY'), ''));
+    elsif old.gereserveerd_op is not null and new.gereserveerd_op is null and new.status not in ('verkocht', 'geannuleerd') then
+      perform public.log_wijziging(new.id, 'gereserveerd', 'Reservering opgeheven');
+    elsif new.gereserveerd_op is not null and new.gereserveerd_tot is distinct from old.gereserveerd_tot then
+      perform public.log_wijziging(new.id, 'gereserveerd', 'Reservering ' || coalesce('nu tot ' || to_char(new.gereserveerd_tot, 'DD-MM-YYYY'), 'zonder einddatum'));
+    end if;
+    if new.locatie is distinct from old.locatie then
+      perform public.log_wijziging(new.id, 'locatie', 'Verplaatst naar ' || public.locatie_label(new.locatie));
+    end if;
+    if new.foto is distinct from old.foto and new.foto is not null then
+      perform public.log_wijziging(new.id, 'foto', 'Nieuwe profielfoto');
+    end if;
+    if new.toegewezen_aan is distinct from old.toegewezen_aan and new.toegewezen_aan is not null then
+      perform public.log_wijziging(new.id, 'persoon', 'Hele auto voor ' || coalesce((select naam from public.profielen where id = new.toegewezen_aan), 'iemand'));
+    end if;
+  end if;
+  return new;
+end $$;
+revoke execute on function public.log_autos() from public, anon, authenticated;

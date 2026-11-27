@@ -20,7 +20,7 @@ const S = {
   autos: [
     { id: 'a1', voorraadnr: '2026-012', chassisnr: 'WP0ZZZ99ZTS312345', kenteken: 'TJ-422-X', merk: 'Porsche', model: '911', type: '993 Carrera Cabriolet', bouwjaar: 1996, kleur: 'Zwart', km: 118400, status: 'werkplaats', locatie: 'werkplaats', datum_binnen: d0(40), aangemaakt: d0(40) },
     { id: 'a2', voorraadnr: '2026-013', chassisnr: 'WP0ZZZ96ZPS400123', kenteken: 'AB-12-CD', merk: 'Porsche', model: '911', type: '964 Targa', bouwjaar: 1991, kleur: 'Guards Red', km: 154000, status: 'klaar', locatie: 'showroom', doc_link: 'https://example.com/voorraad/2026-013', datum_binnen: d0(120), aangemaakt: d0(120) },
-    { id: 'a3', voorraadnr: '2026-014', chassisnr: '57795', kenteken: null, merk: 'Porsche', model: '356', type: 'A T1 Coupé', bouwjaar: 1956, kleur: 'Silbermetallic', km: 82000, status: 'binnen', locatie: 'box3', datum_binnen: d0(5), aangemaakt: d0(5) },
+    { id: 'a3', voorraadnr: '2026-014', chassisnr: '57795', kenteken: null, merk: 'Porsche', model: '356', type: 'A T1 Coupé', bouwjaar: 1956, kleur: 'Silbermetallic', km: 82000, status: 'binnen', gereserveerd_op: d0(1), gereserveerd_voor: 'c1', gereserveerd_tot: d0(-6), locatie: 'box3', datum_binnen: d0(5), aangemaakt: d0(5) },
     { id: 'a4', voorraadnr: '2026-009', chassisnr: 'ZFFJA09B000012345', kenteken: 'XX-99-YY', merk: 'Ferrari', model: '308', type: 'GTS', bouwjaar: 1979, kleur: 'Rosso Corsa', km: 61000, status: 'verkocht', locatie: null, datum_binnen: d0(200), verkoopdatum: d0(3), bestemming: 'buiten', aangemaakt: d0(200) },
     { id: 'a6', voorraadnr: '2026-105', chassisnr: null, kenteken: null, merk: 'Porsche', model: '911', type: '3.2 Carrera Coupé', bouwjaar: 1985, kleur: 'Zwart', km: null, status: 'onderweg', locatie: null, locatie_info: 'Transport uit Duitsland', datum_binnen: d0(150), aangemaakt: d0(150) },
     { id: 'a7', voorraadnr: '2026-099', chassisnr: '9113100777', kenteken: null, merk: 'Porsche', model: '911', type: 'T Targa', bouwjaar: 1973, kleur: 'Oranje', km: null, status: 'geannuleerd', locatie: null, geannuleerd_op: d0(6), annuleer_reden: 'Verkoper trok zich terug', datum_binnen: null, aangemaakt: d0(30) },
@@ -74,6 +74,9 @@ const S = {
     { id: 1, auto_id: 'a1', wie: 'u-mon', soort: 'taak', tekst: 'Taak afgerond: Kap afstellen', aangemaakt: d0(3) },
     { id: 2, auto_id: 'a1', wie: 'u-ver', soort: 'onderdeel', tekst: 'Onderdeel besteld: Remschijven voor', aangemaakt: d0(2) },
     { id: 3, auto_id: 'a3', wie: 'u-mon', soort: 'taak', tekst: 'Voorstel: Koppelingsplaten vervangen', aangemaakt: d0(1) },
+    { id: 7, auto_id: 'a3', wie: 'u-ver', soort: 'gereserveerd', tekst: 'Gereserveerd tot ' + d0(-6).split('-').reverse().join('-'), aangemaakt: d0(1) },
+    { id: 8, auto_id: 'a2', wie: 'u-ver', soort: 'verkocht', tekst: 'Verkocht', aangemaakt: d0(1) },
+    { id: 9, auto_id: 'a1', wie: 'u-beh', soort: 'aangekomen', tekst: 'Aangekomen', aangemaakt: d0(4) },
     { id: 4, auto_id: 'a2', wie: 'u-beh', soort: 'status', tekst: 'Status: In werkplaats → Klaar voor verkoop', aangemaakt: d0(1) },
     { id: 5, auto_id: 'a2', wie: 'u-beh', soort: 'locatie', tekst: 'Verplaatst naar Showroom', aangemaakt: d0(1) },
     { id: 6, auto_id: 'a8', wie: 'u-ver', soort: 'auto', tekst: 'Nieuwe auto toegevoegd', aangemaakt: d0(2) },

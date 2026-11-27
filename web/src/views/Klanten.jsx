@@ -91,7 +91,7 @@ function KlantDossier({ k, onEdit }) {
             <div key={c.id} className="m-item">
               <div className="m-who">
                 <button className="linkish" onClick={() => openCar(c.id)}>{carName(c)}{c.bouwjaar ? `, ${c.bouwjaar}` : ''}</button>
-                <div className="m-wish"><Nr c={c} /> <Status s={c.status} /> {eur(d.prijsOf(c))}{m.over ? ' · iets boven budget' : ''}</div>
+                <div className="m-wish"><Nr c={c} /> <Status s={c.status} c={c} /> {eur(d.prijsOf(c))}{m.over ? ' · iets boven budget' : ''}</div>
               </div>
               {informed.has(c.id) ? <span className="chip ok">Geïnformeerd</span> : <button className="btn sm" onClick={() => inform(c)}>Geïnformeerd</button>}
             </div>
@@ -219,7 +219,7 @@ export function Matches() {
           <div key={c.id} className="wcard">
             <div className="wcard-h">
               <h3><button className="linkish" style={{ fontSize: 'inherit' }} onClick={() => openCar(c.id)}>{carName(c)}{c.bouwjaar ? `, ${c.bouwjaar}` : ''}</button></h3>
-              <div className="d-actions"><Nr c={c} /><Plate c={c} /><Status s={c.status} />{d.prijsOf(c) ? <span className="chip">{eur(d.prijsOf(c))}</span> : null}</div>
+              <div className="d-actions"><Nr c={c} /><Plate c={c} /><Status s={c.status} c={c} />{d.prijsOf(c) ? <span className="chip">{eur(d.prijsOf(c))}</span> : null}</div>
             </div>
             <div style={{ padding: '2px 14px' }}>{ms.map((m) => (
               <div key={m.klant.id} className="m-item" style={{ borderBottomColor: 'var(--line)' }}>

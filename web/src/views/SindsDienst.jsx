@@ -1,4 +1,4 @@
-import { useApp, Empty } from '../ui';
+import { useApp, Empty, Status } from '../ui';
 import { carLabel } from '../lib';
 import { naamVan } from './Planning';
 
@@ -21,6 +21,8 @@ export function ongezien(d, uid) {
     .sort((a, b) => b.ws[0].aangemaakt.localeCompare(a.ws[0].aangemaakt));
 }
 
+// Belangrijke gebeurtenissen krijgen een eigen label en kleur
+const BELANGRIJK = { verkocht: ['Verkocht', 'ok'], aangekomen: ['Aangekomen', 'match'], gereserveerd: ['Reservering', 'res'] };
 const dag = (iso) => new Date(iso).toLocaleDateString('nl-NL', { weekday: 'long' });
 const tijd = (iso) => {
   const t = new Date(iso);
@@ -50,12 +52,18 @@ export default function SindsDienst() {
         </div>
         {lijst.length > 1 && <button className="btn" onClick={() => zie(lijst.map((x) => x.c.id))}>Alles gezien</button>}
       </div>
+      {lijst.length > 0 && (() => {
+        const tel = (soort) => lijst.filter(({ ws }) => ws.some((w) => w.soort === soort)).length;
+        const t = [['verkocht', 'verkocht'], ['aangekomen', 'aangekomen'], ['gereserveerd', 'reservering gewijzigd']].map(([k, l]) => [k, tel(k), l]).filter(([, n]) => n);
+        return t.length ? <div className="sinds-sam">{t.map(([k, n, l]) => <span key={k} className={`chip ${BELANGRIJK[k][1]}`}>{n} {l}</span>)}</div> : null;
+      })()}
       {!lijst.length ? <div className="pane"><Empty title="Je bent helemaal bij">Er is niets veranderd sinds je laatste bezoek.</Empty></div> : (
         <div className="stack">
           {lijst.map(({ c, ws }) => (
-            <section key={c.id} className="sinds-k">
+            <section key={c.id} className={`sinds-k${ws.some((w) => w.soort === 'verkocht') ? ' k-verkocht' : ws.some((w) => w.soort === 'aangekomen') ? ' k-aangekomen' : ws.some((w) => w.soort === 'gereserveerd') ? ' k-res' : ''}`}>
               <div className="sinds-h">
                 <button className="linkish" onClick={() => openCar(c.id)}>{carLabel(c)}{c.bouwjaar ? ` ${c.bouwjaar}` : ''}</button>
+                <Status s={c.status} c={c} />
                 <span className="note">{ws.length} wijziging{ws.length === 1 ? '' : 'en'}</span>
                 <button className="btn sm" onClick={() => zie([c.id])}>✓ Gezien</button>
               </div>
@@ -63,7 +71,7 @@ export default function SindsDienst() {
                 {ws.map((w) => (
                   <li key={w.id}>
                     <span className="sinds-t">{tijd(w.aangemaakt)}</span>
-                    <span className="sinds-w"><b>{naamVan(d, w.wie) || 'Iemand'}</b> · {w.tekst}</span>
+                    <span className="sinds-w">{BELANGRIJK[w.soort] && <span className={`chip ${BELANGRIJK[w.soort][1]}`}>{BELANGRIJK[w.soort][0]}</span>} <b>{naamVan(d, w.wie) || 'Iemand'}</b> · {w.tekst}</span>
                   </li>
                 ))}
               </ul>

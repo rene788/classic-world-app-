@@ -3,7 +3,7 @@ import { useApp, Modal, Sel, Plate, Status, Loc, DelBtn, Field, useUrls, DocLink
 import { werkers, Wie, Deadline, naamVan, VoorstelKaart } from './Planning';
 import {
   STATUSES, PART_ST, KOST_SOORT, ORDER_ST, FASES, BESTEMMING, CHECK_DEFAULT, UITL, carName, fmtD, eur, eur2, km, hrs, sum,
-  daysSince, num, today, carCost, wishText, shrink, safeName, rid, thumb, opVoorraad, eurVrij, isCons, CONS_AFSPRAAK,
+  daysSince, num, today, carCost, wishText, isGereserveerd, reserveringVerlopen, shrink, safeName, rid, thumb, opVoorraad, eurVrij, isCons, CONS_AFSPRAAK,
 } from '../lib';
 import { UrenForm } from './MijnWerk';
 import { BestellingForm } from './Bestellingen';
@@ -15,6 +15,7 @@ export default function AutoDossier({ car, onEdit }) {
   const dg = daysSince(c.datum_binnen);
 
   const [annuleer, setAnnuleer] = useState(false);
+  const [reserveer, setReserveer] = useState(false);
   const setStatus = (status) => (status === 'geannuleerd' ? setAnnuleer(true) : act((db) => db.update('autos', c.id, { status, ...(c.status === 'geannuleerd' ? { geannuleerd_op: null, annuleer_reden: null } : {}), ...(status === 'verkocht' && !c.verkoopdatum ? { verkoopdatum: today() } : {}), ...(c.status === 'onderweg' && ['binnen', 'werkplaats', 'klaar'].includes(status) ? { datum_binnen: today() } : {}) }), 'Status bijgewerkt', ['autos']));
   const del = async () => { if (await act((db) => db.remove('autos', c.id), 'Auto verwijderd', ['autos'])) setNav((n) => ({ ...n, carId: null })); };
 
@@ -37,7 +38,7 @@ export default function AutoDossier({ car, onEdit }) {
         <div className="eyebrow">{[c.voorraadnr && `#${c.voorraadnr}`, !klant && isCons(c) && 'Consignatie', c.bouwjaar].filter(Boolean).join(' · ') || 'Zonder voorraadnummer'}</div>
         <h2 className="d-title">{carName(c)}</h2>
         <dl className="hero-meta">
-          <div><dt>Status</dt><dd><Status s={c.status} /></dd></div>
+          <div><dt>Status</dt><dd><Status s={c.status} c={c} /></dd></div>
           {c.kenteken && <div><dt>Kenteken</dt><dd><Plate c={c} /></dd></div>}
           {c.locatie && <div><dt>Locatie</dt><dd><Loc c={c} /></dd></div>}
           {prijs != null && <div><dt>Vraagprijs</dt><dd className="num">{geld ? eur(prijs) : eurVrij(prijs)}</dd></div>}
@@ -51,6 +52,7 @@ export default function AutoDossier({ car, onEdit }) {
         </dl>
         <div className="hero-acties">
           {geld && <Sel value={c.status} onChange={setStatus} options={STATUSES} aria-label="Status wijzigen" />}
+          {geld && !klant && opVoorraad(c) && <button className={`btn${isGereserveerd(c) ? ' res-aan' : ''}`} onClick={() => setReserveer(true)}>{isGereserveerd(c) ? (reserveringVerlopen(c) ? 'Reservering verlopen' : '✓ Gereserveerd') : 'Reserveren'}</button>}
           {geld && <button className="btn" onClick={onEdit}>Wijzigen</button>}
           <DocLink c={c} edit={geld} />
           {beheerder && <DelBtn onConfirm={del} label="Verwijderen" />}
@@ -104,6 +106,7 @@ export default function AutoDossier({ car, onEdit }) {
       {tab === 'kosten' && geld && <Financien c={c} />}
       {tab === 'verkoop' && geld && <div className="stack"><Afleverlijst c={c} /><Contacten c={c} /></div>}
       {annuleer && <AnnuleerForm c={c} onClose={() => setAnnuleer(false)} />}
+      {reserveer && <ReserveerForm c={c} onClose={() => setReserveer(false)} />}
     </div>
   );
 }
@@ -130,6 +133,37 @@ function AnnuleerForm({ c, onClose }) {
 }
 
 // Grote foto bovenaan het dossier, met daaroverheen een kaartje met de belangrijkste gegevens
+// Auto reserveren voor een klant, optioneel met einddatum. Verkocht of geannuleerd laat de reservering vanzelf vervallen.
+function ReserveerForm({ c, onClose }) {
+  const { d, act } = useApp();
+  const was = isGereserveerd(c);
+  const [voor, setVoor] = useState(c.gereserveerd_voor || '');
+  const [tot, setTot] = useState(c.gereserveerd_tot || (was ? '' : new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10)));
+  const opslaan = async () => {
+    const ok = await act((db) => db.update('autos', c.id, { gereserveerd_op: c.gereserveerd_op || new Date().toISOString(), gereserveerd_voor: voor || null, gereserveerd_tot: tot || null }), was ? 'Reservering bijgewerkt' : 'Auto gereserveerd', ['autos', 'wijzigingen']);
+    if (ok) onClose();
+  };
+  const opheffen = async () => {
+    if (await act((db) => db.update('autos', c.id, { gereserveerd_op: null, gereserveerd_voor: null, gereserveerd_tot: null }), 'Reservering opgeheven', ['autos', 'wijzigingen'])) onClose();
+  };
+  const klanten = [...d.klanten].sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
+  return (
+    <Modal title={was ? 'Reservering' : 'Auto reserveren'} onClose={onClose}
+      footer={<>
+        {was && <button className="btn" style={{ marginRight: 'auto' }} onClick={opheffen}>Reservering opheffen</button>}
+        <button className="btn" onClick={onClose}>Annuleren</button>
+        <button className="btn primary" onClick={opslaan}>{was ? 'Opslaan' : 'Reserveren'}</button>
+      </>}>
+      <p className="note" style={{ margin: 0 }}>{carName(c)}{c.voorraadnr ? ` · #${c.voorraadnr}` : ''}{was && c.gereserveerd_op ? ` · gereserveerd sinds ${fmtD(c.gereserveerd_op.slice(0, 10))}` : ''}</p>
+      <div className="grid2">
+        <Field label="Voor klant (optioneel)"><Sel value={voor} onChange={setVoor} options={klanten.map((k) => [k.id, k.naam])} empty="Geen klant gekozen" /></Field>
+        <Field label="Gereserveerd tot (optioneel)"><input className="in" type="date" value={tot} min={today()} onChange={(e) => setTot(e.target.value)} /></Field>
+      </div>
+      <p className="hint" style={{ margin: 0 }}>De auto blijft op voorraad en krijgt het label "Gereserveerd", ook in de klantmodus (zonder naam). Collega&apos;s zien het bij "Wat is er nieuw". Zet je de status op Verkocht, dan vervalt de reservering vanzelf.</p>
+    </Modal>
+  );
+}
+
 function Hero({ c, children }) {
   const { act, geld } = useApp();
   const urls = useUrls([c.foto]);
@@ -230,6 +264,7 @@ function MatchesSec({ c }) {
         {lijst.length > 0 && <button className="btn ghost sm" aria-expanded={!verborgen} onClick={() => setVerborgen(!verborgen)}>{verborgen ? `Toon (${lijst.length})` : 'Verbergen'}</button>}
       </h3>
       {!verborgen && <>
+        {isGereserveerd(c) && <div className="banner warn" style={{ margin: '0 0 8px' }}>Let op: deze auto is gereserveerd{c.gereserveerd_voor ? ` voor ${d.klanten.find((k) => k.id === c.gereserveerd_voor)?.naam || 'een klant'}` : ''}{c.gereserveerd_tot ? ` tot ${fmtD(c.gereserveerd_tot)}` : ''}. Vermeld dat als je geïnteresseerden mailt.</div>}
         {metMail.length > 0 && (
           <div className="gi-acties">
             <button className="btn primary" onClick={kopieer} disabled={!adressen.length}>{gekopieerd ? '✓ Gekopieerd' : `Kopieer e-mailadressen (${adressen.length})`}</button>
