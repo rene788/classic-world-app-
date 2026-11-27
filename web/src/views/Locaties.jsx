@@ -6,6 +6,9 @@ import { carLabel, daysSince, opVoorraad, norm, EXTERN_TE_LANG } from '../lib';
 // Verplaatsen gaat via de databasefunctie verplaats_auto, zodat monteurs alleen de locatie kunnen wijzigen.
 const SOORTEN = [['intern', 'Eigen locatie'], ['box', 'Garagebox'], ['extern', 'Extern (partner of elders)']];
 const dagenOp = (c) => daysSince(c.locatie_sinds || c.datum_binnen);
+const MAX_ZICHT = 8; // langere vakken tonen eerst 8 auto's
+const leesSet = (k) => { try { return new Set(JSON.parse(localStorage.getItem(k)) || []); } catch { return new Set(); } };
+const bewaarSet = (k, set) => { try { localStorage.setItem(k, JSON.stringify([...set])); } catch { /* geen opslag */ } };
 const kortNaam = (c) => (c.voorraadnr ? '#' + c.voorraadnr + ' · ' : '') + ([c.model, c.type].filter(Boolean).join(' ') || c.merk || 'Auto');
 
 export default function Locaties() {
@@ -14,6 +17,12 @@ export default function Locaties() {
   const [kies, setKies] = useState(null); // auto die verplaatst wordt
   const [beheer, setBeheer] = useState(false);
   const [over, setOver] = useState(null);
+  // Per apparaat onthouden: ingeklapte vakken, verborgen vakken en vakken waarvan je alles wilt zien
+  const [dicht, setDicht] = useState(() => leesSet('locaties-dicht'));
+  const [weg, setWeg] = useState(() => leesSet('locaties-verborgen'));
+  const [alles, setAlles] = useState(() => new Set());
+  const [kiesVak, setKiesVak] = useState(false);
+  const wissel = (set, setter, key, id) => { const n = new Set(set); if (n.has(id)) n.delete(id); else n.add(id); setter(n); if (key) bewaarSet(key, n); };
   const s = norm(q);
   const autos = d.autos.filter(opVoorraad);
   const past = (c) => !s || norm([c.voorraadnr, c.merk, c.model, c.type, c.kenteken, c.kleur, c.locatie_info, d.locNaam(c.locatie)].join(' ')).includes(s);
@@ -37,12 +46,12 @@ export default function Locaties() {
     onDragLeave: () => setOver((o) => (o === locId ? null : o)),
     onDrop: (e) => { e.preventDefault(); setOver(null); verplaats(d.autoById[e.dataTransfer.getData('text/plain')], locId); },
   } : {};
-  const Auto = ({ c, extern }) => {
+  const auto = (c, extern) => {
     const dg = dagenOp(c);
     const lang = extern && dg > EXTERN_TE_LANG;
     if (!past(c)) return null;
     return (
-      <button className={`la${lang ? ' lang' : ''}`} draggable={werker} onDragStart={(e) => { e.dataTransfer.setData('text/plain', c.id); e.dataTransfer.effectAllowed = 'move'; }}
+      <button key={c.id} className={`la${lang ? ' lang' : ''}`} draggable={werker} onDragStart={(e) => { e.dataTransfer.setData('text/plain', c.id); e.dataTransfer.effectAllowed = 'move'; }}
         onClick={() => setKies(c)} title={carLabel(c)}>
         <CarFoto c={c} url={fotos[c.foto]} sm />
         <span className="la-t"><b>{kortNaam(c)}</b>
@@ -50,50 +59,84 @@ export default function Locaties() {
       </button>
     );
   };
-  const Tegel = ({ l, cars, sub, vrij }) => {
+  const tegel = ({ l, cars, sub, vrij }) => {
+    const sleutel = l.id || 'geen';
+    if (weg.has(sleutel) && !s) return null;
     const n = cars.length;
     const vol = l.plekken && n >= l.plekken;
     const zicht = cars.filter(past);
     if (s && !zicht.length && !norm(l.naam).includes(s)) return null;
+    const ingeklapt = dicht.has(sleutel) && !s; // bij zoeken altijd de gevonden auto's tonen
+    const lijst = s || alles.has(sleutel) ? zicht : zicht.slice(0, MAX_ZICHT);
     return (
-      <section className={`lt${over === l.id ? ' over' : ''}${l.soort === 'extern' ? ' ext' : ''}`} {...(vrij ? {} : drop(l.id))}>
-        <header><h3>{l.naam}</h3><small>{sub || (l.plekken ? `${n} van ${l.plekken} plekken` : `${n} auto${n === 1 ? '' : "'s"}`)}</small></header>
+      <section key={sleutel} className={`lt${over === l.id ? ' over' : ''}${l.soort === 'extern' ? ' ext' : ''}${ingeklapt ? ' dicht' : ''}`} {...(vrij ? {} : drop(l.id))}>
+        <header>
+          <button className="lt-kop" onClick={() => wissel(dicht, setDicht, 'locaties-dicht', sleutel)} aria-expanded={!ingeklapt} title={ingeklapt ? 'Uitklappen' : 'Inklappen'}>
+            <span className="lt-pijl" aria-hidden="true">{ingeklapt ? '▸' : '▾'}</span><h3>{l.naam}</h3>
+          </button>
+          <small>{sub || (l.plekken ? `${n} van ${l.plekken} plekken` : `${n} auto${n === 1 ? '' : "'s"}`)}</small>
+        </header>
         {l.plekken > 0 && <div className={`lt-bar${vol ? ' vol' : ''}`}><i style={{ width: `${Math.min(100, Math.round((n / l.plekken) * 100))}%` }} /></div>}
-        {!n ? <span className="note">Leeg</span> : cars.map((c) => <Auto key={c.id} c={c} extern={l.soort === 'extern'} />)}
+        {ingeklapt ? (werker && !vrij ? <span className="note">Ingeklapt · sleep hierheen</span> : null)
+          : !n ? <span className="note">Leeg</span> : <>
+            {lijst.map((c) => auto(c, l.soort === 'extern'))}
+            {!s && zicht.length > MAX_ZICHT && <button className="btn ghost sm lt-meer" onClick={() => wissel(alles, setAlles, null, sleutel)}>{alles.has(sleutel) ? 'Minder tonen' : `Toon alle ${zicht.length}`}</button>}
+          </>}
       </section>
     );
   };
+  const alleVakken = [...tegels.filter((l) => l.soort === 'intern'), ...(boxen.length ? [{ id: 'boxen', naam: 'Garageboxen' }] : []), ...tegels.filter((l) => l.soort === 'extern'),
+    ...(zonder.length ? [{ id: 'geen', naam: 'Geen locatie' }] : []), ...(onderweg.length ? [{ id: 'onderweg', naam: 'Onderweg' }] : [])];
+  const allesDicht = alleVakken.every((v) => dicht.has(v.id));
+  const zetAllesDicht = () => { const n = allesDicht ? new Set() : new Set(alleVakken.map((v) => v.id)); setDicht(n); bewaarSet('locaties-dicht', n); };
 
   return (
     <div className="loc-p">
       <div className="filters">
         <input className="in" style={{ flex: '1 1 220px' }} placeholder="Zoek auto of locatie…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Zoeken" />
         <span className="note">{autos.length - onderweg.length} auto&apos;s op locatie{zonder.length ? ` · ${zonder.length} zonder locatie` : ''}{teLang.length ? ` · ${teLang.length} te lang extern` : ''}</span>
+        <button className="btn" onClick={zetAllesDicht}>{allesDicht ? 'Alles uitklappen' : 'Alles inklappen'}</button>
+        <button className="btn" onClick={() => setKiesVak(true)} aria-haspopup="dialog">Vakken{weg.size ? ` (${weg.size} verborgen)` : ''}</button>
         {geld && <button className="btn" onClick={() => setBeheer(true)}>Locaties beheren</button>}
       </div>
       {werker && <p className="note" style={{ margin: '0 0 10px' }}>Sleep een auto naar een andere locatie, of tik erop om hem te verplaatsen.</p>}
       <div className="lt-grid">
-        {tegels.filter((l) => l.soort === 'intern').map((l) => <Tegel key={l.id} l={l} cars={op(l.id)} />)}
-        {boxen.length > 0 && <Boxen boxen={boxen} op={op} past={past} over={over} drop={drop} kies={setKies} />}
-        {tegels.filter((l) => l.soort === 'extern').map((l) => <Tegel key={l.id} l={l} cars={op(l.id)} />)}
-        {zonder.length > 0 && <Tegel l={{ id: '', naam: 'Geen locatie', soort: 'leeg' }} cars={zonder} sub={`${zonder.length} auto${zonder.length === 1 ? '' : "'s"} · vul in waar ze staan`} />}
-        {onderweg.length > 0 && <Tegel vrij l={{ id: 'onderweg', naam: 'Onderweg', soort: 'leeg' }} cars={onderweg} sub="nog niet binnen" />}
+        {tegels.filter((l) => l.soort === 'intern').map((l) => tegel({ l, cars: op(l.id) }))}
+        {boxen.length > 0 && (!weg.has('boxen') || s) && <Boxen boxen={boxen} op={op} past={past} over={over} drop={drop} kies={setKies} dicht={dicht.has('boxen') && !s} onWissel={() => wissel(dicht, setDicht, 'locaties-dicht', 'boxen')} />}
+        {tegels.filter((l) => l.soort === 'extern').map((l) => tegel({ l, cars: op(l.id) }))}
+        {zonder.length > 0 && tegel({ l: { id: '', naam: 'Geen locatie', soort: 'leeg' }, cars: zonder, sub: `${zonder.length} auto${zonder.length === 1 ? '' : "'s"} · vul in waar ze staan` })}
+        {onderweg.length > 0 && tegel({ vrij: true, l: { id: 'onderweg', naam: 'Onderweg', soort: 'leeg' }, cars: onderweg, sub: 'nog niet binnen' })}
       </div>
       {!autos.length && <div className="pane"><Empty title="Nog geen auto's">Auto&apos;s op voorraad verschijnen hier op hun locatie.</Empty></div>}
       {kies && <Verplaats c={kies} onClose={() => setKies(null)} verplaats={verplaats} openCar={openCar} />}
       {beheer && <LocBeheer onClose={() => setBeheer(false)} />}
+      {kiesVak && (
+        <Modal title="Welke vakken wil je zien?" onClose={() => setKiesVak(false)} footer={<>
+          {weg.size > 0 && <button className="btn" style={{ marginRight: 'auto' }} onClick={() => { const n = new Set(); setWeg(n); bewaarSet('locaties-verborgen', n); }}>Alles tonen</button>}
+          <button className="btn primary" onClick={() => setKiesVak(false)}>Klaar</button></>}>
+          <p className="note" style={{ margin: 0 }}>Verborgen vakken zie je niet meer op dit apparaat. Zoek je een auto, dan wordt hij toch gevonden. Auto&apos;s blijven gewoon op hun locatie staan.</p>
+          <div className="vak-kies">
+            {alleVakken.map((v) => (
+              <label key={v.id} className="chk"><input type="checkbox" checked={!weg.has(v.id)} onChange={() => wissel(weg, setWeg, 'locaties-verborgen', v.id)} /> {v.naam}</label>
+            ))}
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
 
-function Boxen({ boxen, op, past, over, drop, kies }) {
+function Boxen({ boxen, op, past, over, drop, kies, dicht, onWissel }) {
   const { d, act, geld } = useApp();
   const bezet = boxen.filter((b) => op(b.id).length || d.boxen[b.id]).length;
   const vol = (k, v) => act((db) => db.upsert('boxen', { locatie: k, vol: v }), null, ['boxen']);
   return (
-    <section className="lt lt-boxen">
-      <header><h3>Garageboxen</h3><small>{bezet} van {boxen.length} bezet</small></header>
-      <div className="bx-grid">
+    <section className={`lt lt-boxen${dicht ? ' dicht' : ''}`}>
+      <header>
+        <button className="lt-kop" onClick={onWissel} aria-expanded={!dicht} title={dicht ? 'Uitklappen' : 'Inklappen'}><span className="lt-pijl" aria-hidden="true">{dicht ? '▸' : '▾'}</span><h3>Garageboxen</h3></button>
+        <small>{bezet} van {boxen.length} bezet</small>
+      </header>
+      {!dicht && <div className="bx-grid">
         {boxen.map((b) => {
           const cars = op(b.id);
           const nr = b.naam.replace(/^garagebox\s*/i, '') || b.naam;
@@ -107,7 +150,7 @@ function Boxen({ boxen, op, past, over, drop, kies }) {
             </div>
           );
         })}
-      </div>
+      </div>}
     </section>
   );
 }
