@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp, Modal, Field, Sel, Plate, Nr, Status, Loc, Empty, useForm, useUrls, CarFoto } from '../ui';
-import { STATUSES, LOCATIES, BESTEMMING, carName, norm, num, int, nextNr, today, eur, eurVrij, daysSince, isCons, consNr, opVoorraad } from '../lib';
+import { STATUSES, LOCATIES, BESTEMMING, carName, norm, num, int, nextNr, today, eur, eurVrij, daysSince, isCons, consNr, opVoorraad, km } from '../lib';
 import AutoDossier from './AutoDossier';
 import KlantDossier from './KlantDossier';
 import { Wie } from './Planning';
@@ -12,6 +12,9 @@ export default function Voorraad() {
   const [loc, setLoc] = useState('');
   const [srt, setSrt] = useState('');
   const [form, setForm] = useState(null);
+  // Kaarten (grote foto's) of lijst; wordt per apparaat onthouden
+  const [weergave, setWeergaveRaw] = useState(() => { try { return localStorage.getItem('voorraad-weergave') || 'kaarten'; } catch { return 'kaarten'; } });
+  const setWeergave = (v) => { setWeergaveRaw(v); try { localStorage.setItem('voorraad-weergave', v); } catch { /* geen opslag */ } };
 
   const s = norm(q);
   const list = d.autos
@@ -23,6 +26,47 @@ export default function Voorraad() {
 
   const car = nav.carId && d.autoById[nav.carId];
   const fotoUrls = useUrls(list.map((c) => c.foto));
+  const terug = () => setNav((n) => ({ ...n, carId: null }));
+  const dossier = car && (showroom ? <KlantDossier car={car} /> : <AutoDossier car={car} onEdit={() => setForm(car)} />);
+  const wissel = (
+    <div className="wissel" role="group" aria-label="Weergave">
+      <button aria-pressed={weergave === 'kaarten'} onClick={() => setWeergave('kaarten')}>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>Kaarten</button>
+      <button aria-pressed={weergave === 'lijst'} onClick={() => setWeergave('lijst')}>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>Lijst</button>
+    </div>
+  );
+  const filters = !showroom && <>
+    <Sel value={st} onChange={setSt} options={[['actief', 'Op voorraad'], ...STATUSES, ['alle', 'Alle auto\'s']]} aria-label="Status" />
+    <Sel value={loc} onChange={setLoc} options={LOCATIES} empty="Alle locaties" aria-label="Locatie" />
+    <Sel value={srt} onChange={setSrt} options={[['eigen', 'Eigen voorraad'], ['consignatie', 'Consignatie']]} empty="Eigen + consignatie" aria-label="Eigen of consignatie" />
+  </>;
+  const leeg = <Empty title={d.autos.length ? 'Niets gevonden' : 'Nog geen auto\'s'}>{d.autos.length ? 'Pas de zoekterm of filters aan.' : geld ? 'Voeg de eerste auto toe met de knop + Auto.' : 'Zodra verkoop een auto toevoegt, zie je hem hier.'}</Empty>;
+
+  if (weergave === 'kaarten') return (
+    <div>
+      {car ? (
+        <div className="vol">
+          <button className="btn ghost sm" style={{ marginBottom: 12 }} onClick={terug}>← Terug naar voorraad</button>
+          {dossier}
+        </div>
+      ) : <>
+        <div className="vr-bar">
+          <input className="in zoek" placeholder="Zoek op nr, chassis, kenteken, merk…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Zoeken in voorraad" />
+          {filters}
+          <span className="note" style={{ marginLeft: 'auto' }}>{list.length} auto{list.length === 1 ? '' : "'s"}</span>
+          {wissel}
+          {geld && <button className="btn primary" onClick={() => setForm({})}>+ Auto</button>}
+        </div>
+        {!list.length ? <div className="pane">{leeg}</div> : (
+          <div className="kaarten">
+            {list.map((c) => <Kaart key={c.id} c={c} url={fotoUrls[c.foto]} onClick={() => setNav((n) => ({ ...n, carId: c.id }))} />)}
+          </div>
+        )}
+      </>}
+      {form && <CarForm car={form.id ? form : null} onClose={() => setForm(null)} />}
+    </div>
+  );
 
   return (
     <div className={`split${car ? ' has-detail' : ''}`}>
@@ -30,14 +74,10 @@ export default function Voorraad() {
         <div className="pane-h">
           <input className="in search" placeholder="Zoek op nr, chassis, kenteken, merk…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Zoeken in voorraad" />
           {geld && <button className="btn primary" onClick={() => setForm({})}>+ Auto</button>}
-          {!showroom && <div style={{ display: 'flex', gap: 6, width: '100%' }}>
-            <Sel value={st} onChange={setSt} options={[['actief', 'Op voorraad'], ...STATUSES, ['alle', 'Alle auto\'s']]} aria-label="Status" />
-            <Sel value={loc} onChange={setLoc} options={LOCATIES} empty="Alle locaties" aria-label="Locatie" />
-            <Sel value={srt} onChange={setSrt} options={[['eigen', 'Eigen voorraad'], ['consignatie', 'Consignatie']]} empty="Eigen + consignatie" aria-label="Eigen of consignatie" />
-          </div>}
+          <div style={{ display: 'flex', gap: 6, width: '100%', flexWrap: 'wrap' }}>{filters}{wissel}</div>
         </div>
         <div className="list">
-          {!list.length ? <Empty title={d.autos.length ? 'Niets gevonden' : 'Nog geen auto\'s'}>{d.autos.length ? 'Pas de zoekterm of filters aan.' : geld ? 'Voeg de eerste auto toe met de knop + Auto.' : 'Zodra verkoop een auto toevoegt, zie je hem hier.'}</Empty>
+          {!list.length ? leeg
             : list.map((c) => {
               const open = d.taken.filter((t) => t.auto_id === c.id && !t.klaar).length;
               const matches = geld ? d.matchesForCar(c).filter((m) => !m.informed).length : 0;
@@ -66,12 +106,44 @@ export default function Voorraad() {
         </div>
       </section>
       <section className="pane detail-pane" aria-label="Dossier">
-        {car && showroom ? <KlantDossier car={car} />
-          : car ? <AutoDossier car={car} onEdit={() => setForm(car)} />
+        {car ? dossier
           : <Empty title="Kies een auto">{showroom ? 'Klik links op een auto voor foto\'s en gegevens.' : `Klik links op een auto om het dossier te openen: taken, uren, onderdelen, foto's${geld ? ', kosten en marge' : ''}.`}</Empty>}
       </section>
       {form && <CarForm car={form.id ? form : null} onClose={() => setForm(null)} />}
     </div>
+  );
+}
+
+// Fotokaart voor de voorraad, in de stijl van het autodossier
+function Kaart({ c, url, onClick }) {
+  const { d, geld, klant, showroom } = useApp();
+  const prijs = (geld || klant?.prijs) ? d.prijsOf(c) : null;
+  const open = d.taken.filter((t) => t.auto_id === c.id && !t.klaar).length;
+  const matches = geld ? d.matchesForCar(c).filter((m) => !m.informed).length : 0;
+  const dg = daysSince(c.datum_binnen);
+  const stLabel = Object.fromEntries(STATUSES)[c.status] || c.status;
+  return (
+    <button className="kaart" onClick={onClick}>
+      <div className="kaart-f">
+        {url ? <img src={url} alt="" loading="lazy" /> : <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 15l2-5a2 2 0 0 1 2-1.4h10A2 2 0 0 1 19 10l2 5v3h-2.5M5.5 18H3v-3m5.5 3h7" /><circle cx="7" cy="18" r="1.6" /><circle cx="17" cy="18" r="1.6" /></svg>}
+        <div className="lbl"><span className={`st-${c.status}`}>{stLabel}</span>{!klant && isCons(c) && <span className="cons">Consignatie</span>}</div>
+      </div>
+      <div className="kaart-b">
+        {!showroom && c.voorraadnr && <span className="kaart-nr">#{c.voorraadnr}</span>}
+        <h3 className="kaart-t">{carName(c)}</h3>
+        <span className="kaart-s">{[c.bouwjaar, c.kleur, c.km ? km(c.km) : null].filter(Boolean).join(' · ') || '\u00a0'}</span>
+        {(geld || klant?.prijs) && <span className="kaart-p num">{prijs != null ? (geld ? eur(prijs) : eurVrij(prijs)) : <span className="note">Prijs op aanvraag</span>}</span>}
+        {!klant && (
+          <div className="kaart-m">
+            <Loc c={c} />
+            {c.toegewezen_aan && <Wie d={d} t={c} />}
+            {open > 0 && <span className="chip">{open} open</span>}
+            {matches > 0 && <span className="chip match">{matches} match{matches > 1 ? 'es' : ''}</span>}
+            {opVoorraad(c) && c.status !== 'onderweg' && dg != null && dg > 90 && <span className="chip bad">{dg} dagen</span>}
+          </div>
+        )}
+      </div>
+    </button>
   );
 }
 

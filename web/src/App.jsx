@@ -40,6 +40,7 @@ function Werkplaats({ uid, email }) {
   const [toastMsg, setToastMsg] = useState(null);
   const [nav, setNav] = useState({ view: null, carId: null, klantId: null });
   const [q, setQ] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
   // Klantmodus: verbergt bedragen en interne gegevens als je het scherm aan een klant laat zien.
   // Wordt per apparaat onthouden, zodat verversen de modus niet uitzet.
   const [klant, setKlantRaw] = useState(() => { try { return JSON.parse(localStorage.getItem('klantmodus')) || null; } catch { return null; } });
@@ -143,7 +144,7 @@ function Werkplaats({ uid, email }) {
   const openMatches = zietGeld(rol) ? new Set(raw.autos.flatMap((c) => d.matchesForCar(c).filter((m) => !m.informed).map((m) => m.klant.id))).size : 0;
   const teKeuren = zietGeld(rol) ? raw.uren.filter((h) => h.status === 'ingediend').length : 0;
   const labels = {
-    overzicht: ['Overzicht'], voorraad: ['Voorraad', showroom ? raw.autos.filter((c) => klant.statussen.includes(c.status)).length : raw.autos.filter(opVoorraad).length],
+    overzicht: ['Dashboard'], voorraad: ['Voorraad', showroom ? raw.autos.filter((c) => klant.statussen.includes(c.status)).length : raw.autos.filter(opVoorraad).length],
     werk: ['Mijn werk', raw.taken.filter((t) => !t.klaar && !t.voorstel && t.toegewezen_aan === uid).length || null], planning: ['Planning', zietGeld(rol) ? raw.taken.filter((t) => t.voorstel === 'open').length || null : null, true], matches: ['Matches', openMatches || null, true], klanten: ['Klanten', raw.klanten.length],
     aanbod: ['Gevonden aanbod', raw.aanbod.filter((x) => x.status === 'nieuw').length || null, true],
     bestellingen: ['Bestellingen'], uren: [rol === 'monteur' ? 'Mijn uren' : 'Uren', isBeheerder(rol) && teKeuren ? teKeuren : null, true],
@@ -158,37 +159,70 @@ function Werkplaats({ uid, email }) {
 
   return (
     <AppCtx.Provider value={ctx}>
-      <header className="top"><div className="top-in">
-        <div className="brand">
-          <h1>Classics World Werkplaats</h1>
-          {me && !klant && <span className="role">{ROLL[rol]} · {me.naam || email}</span>}
-          {zietGeld(rol) && !klant && (
-            <form className="hsearch" onSubmit={zoek} role="search">
-              <input className="in" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Dossier: voorraadnr, chassis of kenteken" aria-label="Dossier zoeken" />
-            </form>
-          )}
-          {me && rol !== 'geblokkeerd' && (
-            <button className={`btn sm km-knop${klant ? ' aan' : ''}`} style={zietGeld(rol) && !klant ? undefined : { marginLeft: 'auto' }} aria-pressed={!!klant}
-              onClick={() => (klant ? setKlant(null) : setKlantStart(true))} title={klant ? 'Klantmodus uitzetten' : 'Laat de app zien zonder prijzen en interne gegevens'}>
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{klant
-                ? <><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></>
-                : <><path d="M17.9 17.9A10 10 0 0 1 12 19c-6.5 0-10-7-10-7a18 18 0 0 1 4.1-5M9.9 5.2A9 9 0 0 1 12 5c6.5 0 10 7 10 7a18 18 0 0 1-2.2 3.2" /><path d="M2 2l20 20" /></>}</svg>
-              {klant ? 'Klantmodus uit' : 'Klantmodus'}
-            </button>
-          )}
-          {!klant && <button className="btn ghost sm" onClick={() => db.signOut()}>Uitloggen</button>}
+      <div className={`app${menuOpen ? ' menu-open' : ''}`}>
+      <aside className="side" aria-label="Hoofdmenu">
+        <div className="side-brand">
+          <span className="wordmark">CLASSICS-WORLD</span>
+          <span className="sub">Het autodossier</span>
         </div>
-        <nav className="tabs" role="tablist">
-          {tabs.map((t) => {
-            const [label, n, hot] = labels[t];
+        <nav className="side-nav">
+          {MENU.map((g) => {
+            const items = g.items.filter((t) => tabs.includes(t));
+            if (!items.length) return null;
             return (
-              <button key={t} className="tab" role="tab" aria-selected={view === t} onClick={() => go(t, t === 'voorraad' ? { carId: null } : t === 'klanten' ? { klantId: null } : {})}>
-                {label}{n != null && <span className={`count num${hot && n ? ' hot' : ''}`}>{n}</span>}
-              </button>
+              <div key={g.kop || 'hoofd'} className="side-groep">
+                {g.kop && <div className="side-kop">{g.kop}</div>}
+                {items.map((t) => {
+                  const [label, n, hot] = labels[t];
+                  return (
+                    <button key={t} className="side-item" aria-current={view === t ? 'page' : undefined}
+                      onClick={() => { setMenuOpen(false); go(t, t === 'voorraad' ? { carId: null } : t === 'klanten' ? { klantId: null } : {}); }}>
+                      <Icoon naam={t} /><span className="side-l">{label}</span>{n != null && <span className={`side-n num${hot && n ? ' hot' : ''}`}>{n}</span>}
+                    </button>
+                  );
+                })}
+              </div>
             );
           })}
         </nav>
-      </div></header>
+        <div className="side-voet">
+          {me && rol !== 'geblokkeerd' && (
+            <button className={`side-item km-knop${klant ? ' aan' : ''}`} aria-pressed={!!klant}
+              onClick={() => { setMenuOpen(false); if (klant) setKlant(null); else setKlantStart(true); }} title={klant ? 'Klantmodus uitzetten' : 'Laat de app zien zonder prijzen en interne gegevens'}>
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{klant
+                ? <><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></>
+                : <><path d="M17.9 17.9A10 10 0 0 1 12 19c-6.5 0-10-7-10-7a18 18 0 0 1 4.1-5M9.9 5.2A9 9 0 0 1 12 5c6.5 0 10 7 10 7a18 18 0 0 1-2.2 3.2" /><path d="M2 2l20 20" /></>}</svg>
+              <span className="side-l">{klant ? 'Klantmodus uit' : 'Bekijk als klant'}</span>
+            </button>
+          )}
+          {me && !klant && (
+            <div className="side-user">
+              <span className="avatar" aria-hidden="true">{(me.naam || email || '?').trim()[0]?.toUpperCase()}</span>
+              <span className="side-user-t"><b>{me.naam || email}</b><small>{ROLL[rol]}</small></span>
+              <button className="side-uit" onClick={() => db.signOut()} title="Uitloggen" aria-label="Uitloggen">
+                <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" /></svg>
+              </button>
+            </div>
+          )}
+        </div>
+      </aside>
+      {menuOpen && <div className="side-scrim" onClick={() => setMenuOpen(false)} aria-hidden="true" />}
+      <div className="inhoud">
+      <header className="kop">
+        <button className="kop-menu" onClick={() => setMenuOpen(true)} aria-label="Menu openen">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+        </button>
+        <div className="kop-t">
+          {view === 'overzicht' && me && !klant && <div className="eyebrow">{new Date().toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })}</div>}
+          <h1>{view === 'overzicht' && me && !klant ? `${groet()} ${(me.naam || '').split(' ')[0]}`.trim() : labels[view]?.[0]}</h1>
+        </div>
+        {zietGeld(rol) && !klant && (
+          <form className="hsearch" onSubmit={zoek} role="search">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Zoek op voorraadnr, chassis of kenteken" aria-label="Dossier zoeken" />
+          </form>
+        )}
+      </header>
       {klantStart && <KlantmodusStart onClose={() => setKlantStart(false)} onStart={(v) => { setKlant(v); setKlantStart(false); setNav((n) => ({ ...n, view: 'voorraad', carId: null })); }} />}
       <main>
         {loadErr && <div className="banner warn">{loadErr}</div>}
@@ -200,6 +234,8 @@ function Werkplaats({ uid, email }) {
             <View />
           </>}
       </main>
+      </div>
+      </div>
       {toastMsg && <div className={`toast${toastMsg.err ? ' err' : ''}`} role="status">{toastMsg.msg}</div>}
     </AppCtx.Provider>
   );
@@ -228,4 +264,28 @@ function KlantmodusStart({ onClose, onStart }) {
       </>}
     </Modal>
   );
+}
+
+// Menu in de zijbalk: groepen zoals in het autodossier-ontwerp
+const MENU = [
+  { items: ['overzicht', 'voorraad', 'klanten', 'matches'] },
+  { kop: 'Werkplaats', items: ['werk', 'planning', 'uren', 'bestellingen'] },
+  { kop: 'Beheer', items: ['aanbod', 'beheer'] },
+];
+const groet = () => { const h = new Date().getHours(); return h < 12 ? 'Goedemorgen' : h < 18 ? 'Goedemiddag' : 'Goedenavond'; };
+
+const ICONEN = {
+  overzicht: <><rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" /><rect x="14" y="12" width="7" height="9" rx="1.5" /><rect x="3" y="16" width="7" height="5" rx="1.5" /></>,
+  voorraad: <><path d="M3 15l2-5a2 2 0 0 1 2-1.4h10A2 2 0 0 1 19 10l2 5v3h-2.5M5.5 18H3v-3m5.5 3h7" /><circle cx="7" cy="18" r="1.6" /><circle cx="17" cy="18" r="1.6" /></>,
+  klanten: <><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0" /><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6.5 6.5 0 0 1 3.5 5.5" /></>,
+  matches: <><path d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10z" /></>,
+  werk: <><path d="M9 11l3 3 8-8" /><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9" /></>,
+  planning: <><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M3 9h18M8 2v4M16 2v4M8 13h3M8 17h6" /></>,
+  uren: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
+  bestellingen: <><path d="M3 7l9-4 9 4-9 4-9-4z" /><path d="M3 7v10l9 4 9-4V7M12 11v10" /></>,
+  aanbod: <><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5M8 11h6M11 8v6" /></>,
+  beheer: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></>,
+};
+export function Icoon({ naam, size = 17 }) {
+  return <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{ICONEN[naam]}</svg>;
 }
