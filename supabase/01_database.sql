@@ -473,3 +473,144 @@ end $$;
 drop trigger if exists bewaak_voorstel on public.taken;
 create trigger bewaak_voorstel before insert or update on public.taken for each row execute function public.bewaak_voorstel();
 revoke execute on function public.bewaak_voorstel() from public, anon, authenticated;
+
+-- ===== nov 2026: Sinds je laatste dienst en Reparaties =====
+-- ===== Sinds je laatste dienst: logboek van wijzigingen per auto (nov 2026) =====
+create table if not exists public.wijzigingen (
+  id bigserial primary key,
+  auto_id uuid not null references public.autos(id) on delete cascade,
+  wie uuid references public.profielen(id) on delete set null,
+  soort text not null,
+  tekst text not null,
+  aangemaakt timestamptz not null default now()
+);
+create index if not exists wijzigingen_tijd on public.wijzigingen (aangemaakt desc);
+create index if not exists wijzigingen_auto on public.wijzigingen (auto_id, aangemaakt desc);
+alter table public.wijzigingen enable row level security;
+drop policy if exists lezen on public.wijzigingen;
+create policy lezen on public.wijzigingen for select to authenticated using (public.heeft_toegang());
+-- schrijven gebeurt alleen door de triggers hieronder
+
+create table if not exists public.gezien (
+  profiel_id uuid not null default auth.uid() references public.profielen(id) on delete cascade,
+  auto_id uuid not null references public.autos(id) on delete cascade,
+  tot timestamptz not null default now(),
+  primary key (profiel_id, auto_id)
+);
+alter table public.gezien enable row level security;
+drop policy if exists eigen on public.gezien;
+create policy eigen on public.gezien for all to authenticated using (profiel_id = auth.uid()) with check (profiel_id = auth.uid());
+
+create or replace function public.log_wijziging(p_auto uuid, p_soort text, p_tekst text) returns void
+language sql security definer set search_path = public as $$
+  insert into public.wijzigingen (auto_id, wie, soort, tekst) values (p_auto, auth.uid(), p_soort, left(p_tekst, 300));
+$$;
+revoke execute on function public.log_wijziging(uuid, text, text) from public, anon, authenticated;
+
+create or replace function public.status_label(s text) returns text language sql immutable set search_path = public as $$
+  select case s when 'onderweg' then 'Onderweg' when 'binnen' then 'Binnengekomen' when 'werkplaats' then 'In werkplaats'
+    when 'klaar' then 'Klaar voor verkoop' when 'verkocht' then 'Verkocht' when 'geannuleerd' then 'Aankoop geannuleerd' else coalesce(s, '—') end
+$$;
+create or replace function public.locatie_label(s text) returns text language sql immutable set search_path = public as $$
+  select case when s is null then 'geen locatie' when s = 'werkplaats' then 'Werkplaats' when s = 'showroom' then 'Showroom'
+    when s = 'loods' then 'Externe loods' when s = 'extern' then 'Externe locatie' when s like 'box%' then 'Box ' || substr(s, 4) else s end
+$$;
+
+create or replace function public.log_autos() returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if tg_op = 'INSERT' then
+    perform public.log_wijziging(new.id, 'auto', 'Nieuwe auto toegevoegd');
+  else
+    if new.status is distinct from old.status then
+      perform public.log_wijziging(new.id, 'status', 'Status: ' || public.status_label(old.status) || ' → ' || public.status_label(new.status));
+    end if;
+    if new.locatie is distinct from old.locatie then
+      perform public.log_wijziging(new.id, 'locatie', 'Verplaatst naar ' || public.locatie_label(new.locatie));
+    end if;
+    if new.foto is distinct from old.foto and new.foto is not null then
+      perform public.log_wijziging(new.id, 'foto', 'Nieuwe profielfoto');
+    end if;
+    if new.toegewezen_aan is distinct from old.toegewezen_aan and new.toegewezen_aan is not null then
+      perform public.log_wijziging(new.id, 'persoon', 'Hele auto voor ' || coalesce((select naam from public.profielen where id = new.toegewezen_aan), 'iemand'));
+    end if;
+  end if;
+  return new;
+end $$;
+drop trigger if exists log_autos on public.autos;
+create trigger log_autos after insert or update on public.autos for each row execute function public.log_autos();
+
+create or replace function public.log_taken() returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.auto_id is null then return new; end if;
+  if tg_op = 'INSERT' then
+    perform public.log_wijziging(new.auto_id, 'taak', case when new.voorstel = 'open' then 'Voorstel: ' else 'Nieuwe taak: ' end || new.tekst);
+  else
+    if new.klaar and not old.klaar then perform public.log_wijziging(new.auto_id, 'taak', 'Taak afgerond: ' || new.tekst); end if;
+    if old.voorstel = 'open' and new.voorstel is null then perform public.log_wijziging(new.auto_id, 'taak', 'Voorstel goedgekeurd: ' || new.tekst); end if;
+    if old.voorstel = 'open' and new.voorstel = 'afgewezen' then perform public.log_wijziging(new.auto_id, 'taak', 'Voorstel afgewezen: ' || new.tekst); end if;
+  end if;
+  return new;
+end $$;
+drop trigger if exists log_taken on public.taken;
+create trigger log_taken after insert or update on public.taken for each row execute function public.log_taken();
+
+create or replace function public.log_onderdelen() returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.auto_id is null then return new; end if;
+  if tg_op = 'INSERT' then
+    perform public.log_wijziging(new.auto_id, 'onderdeel', 'Onderdeel nodig: ' || new.onderdeel);
+  elsif new.status is distinct from old.status then
+    perform public.log_wijziging(new.auto_id, 'onderdeel', case new.status when 'binnen' then 'Onderdeel binnen: ' when 'besteld' then 'Onderdeel besteld: ' else 'Onderdeel: ' end || new.onderdeel);
+  end if;
+  return new;
+end $$;
+drop trigger if exists log_onderdelen on public.onderdelen;
+create trigger log_onderdelen after insert or update on public.onderdelen for each row execute function public.log_onderdelen();
+
+create or replace function public.log_media() returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  -- documenten en geld-bestanden niet melden
+  if new.auto_id is not null and coalesce(new.fase, '') <> 'document' and new.pad not like 'geld/%' then
+    perform public.log_wijziging(new.auto_id, 'foto', case when coalesce(new.soort, '') like 'video/%' then 'Video toegevoegd' else 'Foto toegevoegd' end);
+  end if;
+  return new;
+end $$;
+drop trigger if exists log_media on public.media;
+create trigger log_media after insert on public.media for each row execute function public.log_media();
+revoke execute on function public.log_autos() from public, anon, authenticated;
+revoke execute on function public.log_taken() from public, anon, authenticated;
+revoke execute on function public.log_onderdelen() from public, anon, authenticated;
+revoke execute on function public.log_media() from public, anon, authenticated;
+
+-- ===== Reparaties voor klanten (auto's die niet in de voorraad staan) =====
+create table if not exists public.reparaties (
+  id uuid primary key default gen_random_uuid(),
+  nr bigint generated always as identity,
+  klant_id uuid references public.klanten(id) on delete set null,
+  klant_naam text,
+  telefoon text,
+  auto text not null,
+  kenteken text,
+  omschrijving text not null,
+  status text not null default 'aangemeld',
+  toegewezen_aan uuid references public.profielen(id) on delete set null,
+  binnen_op date,
+  klaar_voor date,
+  uren_geschat numeric,
+  uren_besteed numeric,
+  notitie text,
+  aangemaakt timestamptz not null default now(),
+  aangemaakt_door uuid default auth.uid() references public.profielen(id) on delete set null
+);
+alter table public.reparaties drop constraint if exists reparaties_status_check;
+alter table public.reparaties add constraint reparaties_status_check check (status in ('aangemeld','gepland','bezig','wacht','klaar','opgehaald'));
+create index if not exists reparaties_status on public.reparaties (status);
+alter table public.reparaties enable row level security;
+drop policy if exists lezen on public.reparaties;
+drop policy if exists toevoegen on public.reparaties;
+drop policy if exists wijzigen on public.reparaties;
+drop policy if exists verwijderen on public.reparaties;
+create policy lezen on public.reparaties for select to authenticated using (public.mag_werken());
+create policy toevoegen on public.reparaties for insert to authenticated with check (public.mag_werken());
+create policy wijzigen on public.reparaties for update to authenticated using (public.mag_werken()) with check (public.mag_werken());
+create policy verwijderen on public.reparaties for delete to authenticated using (public.ziet_geld());

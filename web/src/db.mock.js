@@ -3,7 +3,7 @@
 const rol = new URLSearchParams(location.search).get('rol') || 'beheerder';
 const ids = { beheerder: 'u-beh', verkoop: 'u-ver', monteur: 'u-mon', meekijker: 'u-kijk' };
 const me = ids[rol];
-const KEYS = { auto_financien: 'auto_id', klokken: 'monteur_id', boxen: 'locatie', instellingen: 'sleutel' };
+const KEYS = { auto_financien: 'auto_id', klokken: 'monteur_id', boxen: 'locatie', instellingen: 'sleutel', gezien: 'auto_id' };
 const keyOf = (t) => KEYS[t] || 'id';
 const geld = ['beheerder', 'verkoop'].includes(rol);
 const d0 = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
@@ -70,6 +70,20 @@ const S = {
   contactmomenten: [{ id: 'm1', klant_id: 'c2', auto_id: null, datum: d0(1), kanaal: 'Telefoon', uitkomst: 'komt-kijken', afspraak: d0(-4), notitie: 'Wil 964 bekijken', door: 'u-ver', aangemaakt: d0(1) }],
   aanbod: [{ id: 'x1', merk: 'Porsche', model: '911', type: '993 Cabrio', bouwjaar: 1995, prijs: 98000, land: 'Duitsland', bron: 'mobile.de', link: 'https://example.com', status: 'nieuw', aangemaakt: d0(1) }],
   instellingen: [{ sleutel: 'uurtarief', waarde: 55 }, { sleutel: 'uurtarief_klant', waarde: 85 }],
+  wijzigingen: [
+    { id: 1, auto_id: 'a1', wie: 'u-mon', soort: 'taak', tekst: 'Taak afgerond: Kap afstellen', aangemaakt: d0(3) },
+    { id: 2, auto_id: 'a1', wie: 'u-ver', soort: 'onderdeel', tekst: 'Onderdeel besteld: Remschijven voor', aangemaakt: d0(2) },
+    { id: 3, auto_id: 'a3', wie: 'u-mon', soort: 'taak', tekst: 'Voorstel: Koppelingsplaten vervangen', aangemaakt: d0(1) },
+    { id: 4, auto_id: 'a2', wie: 'u-beh', soort: 'status', tekst: 'Status: In werkplaats → Klaar voor verkoop', aangemaakt: d0(1) },
+    { id: 5, auto_id: 'a2', wie: 'u-beh', soort: 'locatie', tekst: 'Verplaatst naar Showroom', aangemaakt: d0(1) },
+    { id: 6, auto_id: 'a8', wie: 'u-ver', soort: 'auto', tekst: 'Nieuwe auto toegevoegd', aangemaakt: d0(2) },
+  ],
+  gezien: [],
+  reparaties: [
+    { id: 'r1', nr: 1, klant_naam: 'Piet Mulder', telefoon: '06 2222 3333', auto: 'Porsche 911 SC Coupé 1981', kenteken: '45-XG-12', omschrijving: 'Olielek motor, kleppendeksels pakkingen vervangen', status: 'bezig', toegewezen_aan: 'u-mon', binnen_op: d0(3), klaar_voor: d0(-2), uren_geschat: 6, aangemaakt: d0(4) },
+    { id: 'r2', nr: 2, klant_naam: 'Ingrid Smit', telefoon: '06 4444 5555', auto: 'Mercedes 280 SL 1969', kenteken: 'DZ-11-AB', omschrijving: 'Remmen rondom nalopen, APK', status: 'wacht', toegewezen_aan: null, binnen_op: d0(6), klaar_voor: d0(-5), uren_geschat: 4, notitie: 'Wacht op remklauwen', aangemaakt: d0(7) },
+    { id: 'r3', nr: 3, klant_naam: 'Bas Jansen', telefoon: null, auto: 'Jaguar E-Type S1', kenteken: null, omschrijving: 'Carburateurs afstellen', status: 'aangemeld', toegewezen_aan: null, binnen_op: null, klaar_voor: d0(-10), uren_geschat: 3, aangemaakt: d0(1) },
+  ],
 };
 
 const GELD = ['auto_financien', 'kosten', 'bestellingen', 'afleverlijst', 'klanten', 'zoekwensen', 'contactmomenten', 'aanbod', 'instellingen'];
@@ -79,6 +93,7 @@ const visible = (t) => {
   if (!geld && t === 'uren') rows = rows.filter((h) => h.monteur_id === me);
   if (!geld && t === 'klokken') rows = rows.filter((k) => k.monteur_id === me);
   if (!geld && t === 'media') rows = rows.filter((m) => m.fase !== 'document');
+  if (t === 'reparaties' && rol === 'meekijker') return [];
   return rows;
 };
 const denied = () => { throw Object.assign(new Error('new row violates row-level security policy'), { code: '42501' }); };
