@@ -614,3 +614,74 @@ create policy lezen on public.reparaties for select to authenticated using (publ
 create policy toevoegen on public.reparaties for insert to authenticated with check (public.mag_werken());
 create policy wijzigen on public.reparaties for update to authenticated using (public.mag_werken()) with check (public.mag_werken());
 create policy verwijderen on public.reparaties for delete to authenticated using (public.ziet_geld());
+-- ===== Locaties: eigen locaties met plekken, externe partners, en sinds wanneer een auto ergens staat (nov 2026) =====
+create table if not exists public.locaties (
+  id text primary key check (id ~ '^[a-z0-9-]{1,40}$'),
+  naam text not null check (length(trim(naam)) between 1 and 60),
+  soort text not null default 'intern' check (soort in ('intern', 'box', 'extern')),
+  plekken int check (plekken is null or plekken between 1 and 500),
+  volgorde int not null default 0,
+  actief boolean not null default true,
+  aangemaakt timestamptz not null default now()
+);
+alter table public.locaties enable row level security;
+drop policy if exists lezen on public.locaties;
+drop policy if exists toevoegen on public.locaties;
+drop policy if exists wijzigen on public.locaties;
+drop policy if exists verwijderen on public.locaties;
+create policy lezen on public.locaties for select to authenticated using (public.heeft_toegang());
+create policy toevoegen on public.locaties for insert to authenticated with check (public.ziet_geld());
+create policy wijzigen on public.locaties for update to authenticated using (public.ziet_geld()) with check (public.ziet_geld());
+create policy verwijderen on public.locaties for delete to authenticated using (public.is_beheerder());
+
+-- De locaties die tot nu toe vast in de app stonden
+insert into public.locaties (id, naam, soort, plekken, volgorde) values
+  ('showroom', 'Showroom', 'intern', null, 10),
+  ('werkplaats', 'Werkplaats', 'intern', null, 20),
+  ('loods', 'Externe loods', 'intern', null, 30),
+  ('extern', 'Externe locatie (overig)', 'extern', null, 900)
+on conflict (id) do nothing;
+insert into public.locaties (id, naam, soort, plekken, volgorde)
+  select 'box' || n, 'Garagebox ' || n, 'box', null, 100 + n from generate_series(1, 10) n
+on conflict (id) do nothing;
+
+-- Een auto kan alleen op een bestaande locatie staan
+alter table public.autos drop constraint if exists autos_locatie_fk;
+alter table public.autos add constraint autos_locatie_fk foreign key (locatie) references public.locaties(id) on update cascade on delete set null;
+
+-- Sinds wanneer staat de auto op zijn huidige plek
+alter table public.autos add column if not exists locatie_sinds timestamptz;
+update public.autos set locatie_sinds = coalesce(datum_binnen::timestamptz, aangemaakt) where locatie_sinds is null and locatie is not null;
+create or replace function public.zet_locatie_sinds() returns trigger language plpgsql set search_path = public as $$
+begin
+  if tg_op = 'INSERT' or new.locatie is distinct from old.locatie then
+    new.locatie_sinds := case when new.locatie is null then null else now() end;
+  end if;
+  return new;
+end $$;
+revoke execute on function public.zet_locatie_sinds() from public, anon, authenticated;
+drop trigger if exists zet_locatie_sinds on public.autos;
+create trigger zet_locatie_sinds before insert or update of locatie on public.autos for each row execute function public.zet_locatie_sinds();
+
+-- Naam in het logboek "Wat is er nieuw" komt nu uit de tabel
+create or replace function public.locatie_label(s text) returns text language sql stable set search_path = public as $$
+  select case when s is null then 'geen locatie' else coalesce((select naam from public.locaties where id = s), s) end
+$$;
+
+-- Verplaatsen mag iedereen die werkt (ook monteurs), maar alleen de locatie; de rest van de auto blijft voor verkoop/beheer
+create or replace function public.verplaats_auto(p_auto uuid, p_locatie text, p_info text default null) returns void
+language plpgsql security definer set search_path = public as $$
+declare s text;
+begin
+  if not public.mag_werken() then raise exception 'Je hebt geen rechten om auto''s te verplaatsen'; end if;
+  if p_locatie is not null then
+    select soort into s from public.locaties where id = p_locatie and actief;
+    if s is null then raise exception 'Onbekende locatie'; end if;
+  end if;
+  update public.autos set locatie = p_locatie,
+    locatie_info = case when s = 'extern' then nullif(left(trim(coalesce(p_info, '')), 120), '') else null end
+  where id = p_auto;
+  if not found then raise exception 'Auto niet gevonden'; end if;
+end $$;
+revoke execute on function public.verplaats_auto(uuid, text, text) from public, anon;
+grant execute on function public.verplaats_auto(uuid, text, text) to authenticated;

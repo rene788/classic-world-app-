@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { db, TABLES } from './db';
 import { AppCtx, Modal } from './ui';
-import { ROLL, zietGeld, isBeheerder, magWerken, errText, bestMatch, opVoorraad, STATUSES, zetVerbergBedragen } from './lib';
+import { LOCATIES_BASIS, LOCL, ROLL, zietGeld, isBeheerder, magWerken, errText, bestMatch, opVoorraad, STATUSES, zetVerbergBedragen } from './lib';
 import Login, { NieuwWachtwoord } from './views/Login';
 import Overzicht from './views/Overzicht';
 import Voorraad from './views/Voorraad';
@@ -16,6 +16,7 @@ import SindsDienst, { ongezien } from './views/SindsDienst';
 import Reparaties, { repOpen } from './views/Reparaties';
 import WerkplaatsTabel, { werkplaatsRijen } from './views/Werkplaats';
 import Financien from './views/Financien';
+import Locaties from './views/Locaties';
 import Rondleiding, { rondleidingAlGezien } from './Rondleiding';
 
 const EMPTY = Object.fromEntries(TABLES.map((t) => [t, []]));
@@ -95,6 +96,9 @@ function Werkplaats({ uid, email }) {
     const names = Object.fromEntries(raw.profielen.map((p) => [p.id, p.naam || p.email || 'Onbekend']));
     const autoById = Object.fromEntries(raw.autos.map((a) => [a.id, a]));
     const boxen = Object.fromEntries(raw.boxen.map((b) => [b.locatie, b.vol]));
+    const locaties = [...(raw.locaties?.length ? raw.locaties : LOCATIES_BASIS)].sort((a, b) => a.volgorde - b.volgorde || a.naam.localeCompare(b.naam, 'nl'));
+    const locById = Object.fromEntries(locaties.map((l) => [l.id, l]));
+    const locNaam = (id) => (id ? locById[id]?.naam || LOCL[id] || id : '');
     const wensenByKlant = {};
     raw.zoekwensen.forEach((w) => { (wensenByKlant[w.klant_id] ||= []).push(w); });
     const informed = new Set(raw.contactmomenten.filter((x) => x.auto_id).map((x) => x.klant_id + '|' + x.auto_id));
@@ -111,7 +115,7 @@ function Werkplaats({ uid, email }) {
     // Voorstellen van monteurs zijn nog geen echte taken: apart houden tot verkoop/beheer akkoord geeft
     const taken = raw.taken.filter((t) => !t.voorstel);
     const voorstellen = raw.taken.filter((t) => t.voorstel);
-    return { ...raw, taken, voorstellen, finByAuto, settings, names, autoById, boxen, wensenByKlant, prijsOf, matchesForCar };
+    return { ...raw, taken, voorstellen, finByAuto, settings, names, autoById, boxen, locaties, locById, locNaam, wensenByKlant, prijsOf, matchesForCar };
   }, [raw]);
 
   const act = useCallback(async (fn, ok, tables) => {
@@ -130,10 +134,10 @@ function Werkplaats({ uid, email }) {
   zetVerbergBedragen(!!klant);
   const showroom = klant && klant.modus !== 'hele';
   const rolTabs = !rol ? [] : zietGeld(rol)
-    ? ['overzicht', 'sinds', 'voorraad', 'werk', 'werkplaats', 'planning', 'reparaties', 'matches', 'klanten', 'aanbod', 'bestellingen', 'financien', 'uren', ...(isBeheerder(rol) ? ['beheer'] : [])]
-    : rol === 'monteur' ? ['werk', 'sinds', 'werkplaats', 'planning', 'reparaties', 'voorraad', 'uren'] : rol === 'meekijker' ? ['voorraad'] : [];
+    ? ['overzicht', 'sinds', 'voorraad', 'locaties', 'werk', 'werkplaats', 'planning', 'reparaties', 'matches', 'klanten', 'aanbod', 'bestellingen', 'financien', 'uren', ...(isBeheerder(rol) ? ['beheer'] : [])]
+    : rol === 'monteur' ? ['werk', 'sinds', 'werkplaats', 'planning', 'reparaties', 'voorraad', 'locaties', 'uren'] : rol === 'meekijker' ? ['voorraad'] : [];
   // Klantmodus: showroom = alleen voorraad; hele app = alles behalve tabbladen met klantgegevens of inkoopprijzen
-  const tabs = showroom ? ['voorraad'] : klant ? rolTabs.filter((t) => !['klanten', 'matches', 'beheer', 'aanbod', 'bestellingen', 'planning', 'sinds', 'werkplaats', 'reparaties', 'financien'].includes(t)) : rolTabs;
+  const tabs = showroom ? ['voorraad'] : klant ? rolTabs.filter((t) => !['klanten', 'matches', 'beheer', 'aanbod', 'bestellingen', 'planning', 'sinds', 'werkplaats', 'reparaties', 'financien', 'locaties'].includes(t)) : rolTabs;
   const view = tabs.includes(nav.view) ? nav.view : tabs[0];
 
   const go = useCallback((v, extra = {}) => { setNav((n) => ({ ...n, view: v, ...extra })); window.scrollTo(0, 0); }, []);
@@ -163,14 +167,15 @@ function Werkplaats({ uid, email }) {
     werkplaats: ['Werkplaats', magWerken(rol) ? werkplaatsRijen(d).length || null : null],
     reparaties: ['Reparaties', (raw.reparaties || []).filter(repOpen).length || null],
     financien: ['Financiën'],
+    locaties: ['Locaties'],
   };
 
-  const ctx = { d, raw, me, rol, uid, email, act, reload, toast, go, openCar, openKlant, nav, setNav,
+  const ctx = { d, raw, me, rol, uid, email, tabs, act, reload, toast, go, openCar, openKlant, nav, setNav,
     geld: zietGeld(rol) && !klant, beheerder: isBeheerder(rol) && !klant, werker: magWerken(rol) && !klant, klant, showroom };
 
   const View = { overzicht: Overzicht, voorraad: Voorraad, werk: MijnWerk, planning: Planning, matches: Matches, klanten: Klanten,
     aanbod: Aanbod, bestellingen: Bestellingen, uren: Uren, beheer: Beheer,
-    sinds: SindsDienst, werkplaats: WerkplaatsTabel, reparaties: Reparaties, financien: Financien }[view];
+    sinds: SindsDienst, locaties: Locaties, werkplaats: WerkplaatsTabel, reparaties: Reparaties, financien: Financien }[view];
 
   return (
     <AppCtx.Provider value={ctx}>
@@ -290,7 +295,7 @@ function KlantmodusStart({ onClose, onStart }) {
 
 // Menu in de zijbalk: groepen zoals in het autodossier-ontwerp
 const MENU = [
-  { items: ['overzicht', 'sinds', 'voorraad', 'klanten', 'matches'] },
+  { items: ['overzicht', 'sinds', 'voorraad', 'locaties', 'klanten', 'matches'] },
   { kop: 'Werkplaats', items: ['werk', 'werkplaats', 'planning', 'reparaties', 'uren', 'bestellingen'] },
   { kop: 'Beheer', items: ['financien', 'aanbod', 'beheer'] },
 ];
@@ -309,6 +314,7 @@ const ICONEN = {
   sinds: <><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5M12 7v5l3 2" /></>,
   werkplaats: <><path d="M14.7 6.3a4 4 0 0 0-5.4 5.2L3.5 17.3a1.8 1.8 0 0 0 2.5 2.5l5.8-5.8a4 4 0 0 0 5.2-5.4l-2.4 2.4-2.1-.4-.4-2.1z" /></>,
   reparaties: <><path d="M4 17V7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10" /><path d="M2 17h20M9 21h6M9 9h6M9 13h3" /></>,
+  locaties: <><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></>,
   financien: <><path d="M17.5 6.5A7 7 0 1 0 17.5 17.5" /><path d="M4 10h9M4 14h9" /></>,
   beheer: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></>,
 };

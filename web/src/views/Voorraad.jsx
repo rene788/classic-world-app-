@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp, Modal, Field, Sel, Plate, Nr, Status, Loc, Empty, useForm, useUrls, CarFoto } from '../ui';
-import { STATUSES, LOCATIES, BESTEMMING, carName, norm, num, int, nextNr, today, eur, eurVrij, daysSince, isCons, consNr, opVoorraad, km } from '../lib';
+import { STATUSES, BESTEMMING, carName, norm, num, int, nextNr, today, eur, eurVrij, daysSince, isCons, consNr, opVoorraad, km } from '../lib';
 import AutoDossier from './AutoDossier';
 import KlantDossier from './KlantDossier';
 import { Wie } from './Planning';
@@ -38,7 +38,7 @@ export default function Voorraad() {
   );
   const filters = !showroom && <>
     <Sel value={st} onChange={setSt} options={[['actief', 'Op voorraad'], ...STATUSES, ['alle', 'Alle auto\'s']]} aria-label="Status" />
-    <Sel value={loc} onChange={setLoc} options={LOCATIES} empty="Alle locaties" aria-label="Locatie" />
+    <Sel value={loc} onChange={setLoc} options={d.locaties.filter((l) => l.actief).map((l) => [l.id, l.naam])} empty="Alle locaties" aria-label="Locatie" />
     <Sel value={srt} onChange={setSrt} options={[['eigen', 'Eigen voorraad'], ['consignatie', 'Consignatie']]} empty="Eigen + consignatie" aria-label="Eigen of consignatie" />
   </>;
   const leeg = <Empty title={d.autos.length ? 'Niets gevonden' : 'Nog geen auto\'s'}>{d.autos.length ? 'Pas de zoekterm of filters aan.' : geld ? 'Voeg de eerste auto toe met de knop + Auto.' : 'Zodra verkoop een auto toevoegt, zie je hem hier.'}</Empty>;
@@ -167,7 +167,7 @@ export function CarForm({ car, onClose }) {
     const row = {
       voorraadnr: f.voorraadnr.trim() || null, chassisnr: f.chassisnr.trim() || null, kenteken: f.kenteken.trim().toUpperCase() || null,
       merk: f.merk.trim(), model: f.model.trim(), type: f.type.trim(), bouwjaar: int(f.bouwjaar), kleur: f.kleur.trim() || null,
-      km: int(f.km), status: f.status, locatie: f.locatie || null, locatie_info: f.locatie === 'extern' ? (f.locatie_info.trim() || null) : null,
+      km: int(f.km), status: f.status, locatie: f.locatie || null, locatie_info: d.locById[f.locatie]?.soort === 'extern' ? (f.locatie_info.trim() || null) : null,
       datum_binnen: f.datum_binnen || null, bestemming: f.bestemming || null, omschrijving: f.omschrijving.trim() || null,
       soort: cons ? 'consignatie' : 'eigen',
     };
@@ -209,8 +209,8 @@ export function CarForm({ car, onClose }) {
       </div>
       <div className="grid2">
         <Field label="Status"><Sel value={f.status} onChange={set('status')} options={STATUSES} /></Field>
-        <Field label="Locatie"><Sel value={f.locatie} onChange={set('locatie')} options={LOCATIES} empty="Onbekend" /></Field>
-        {f.locatie === 'extern' && <Field label="Waar precies?"><input className="in" value={f.locatie_info} onChange={set('locatie_info')} placeholder="bijv. spuiterij Jansen" /></Field>}
+        <Field label="Locatie"><Sel value={f.locatie} onChange={set('locatie')} options={d.locaties.filter((l) => l.actief || l.id === f.locatie).map((l) => [l.id, l.naam])} empty="Onbekend" /></Field>
+        {d.locById[f.locatie]?.soort === 'extern' && <Field label={f.locatie === 'extern' ? 'Waar precies?' : 'Waarvoor? (optioneel)'}><input className="in" value={f.locatie_info} onChange={set('locatie_info')} placeholder={f.locatie === 'extern' ? 'bijv. bij Frans' : 'bijv. lakwerk motorkap'} /></Field>}
         <Field label="Binnengekomen op"><input className="in" type="date" value={f.datum_binnen} onChange={set('datum_binnen')} /></Field>
         <Field label="Bestemming bij verkoop"><Sel value={f.bestemming} onChange={set('bestemming')} options={BESTEMMING} empty="Nog niet bekend" /></Field>
       </div>

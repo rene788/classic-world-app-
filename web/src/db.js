@@ -8,7 +8,7 @@ export const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
 
 export const TABLES = ['profielen', 'autos', 'auto_financien', 'taken', 'onderdelen', 'uren', 'klokken', 'kosten',
   'bestellingen', 'afleverlijst', 'media', 'boxen', 'klanten', 'zoekwensen', 'contactmomenten', 'aanbod', 'instellingen',
-  'wijzigingen', 'gezien', 'reparaties'];
+  'wijzigingen', 'gezien', 'reparaties', 'locaties'];
 const KEYS = { auto_financien: 'auto_id', klokken: 'monteur_id', boxen: 'locatie', instellingen: 'sleutel', gezien: 'auto_id' };
 export const keyOf = (t) => KEYS[t] || 'id';
 
@@ -47,6 +47,8 @@ export const db = {
     const rows = check(await sb.from(t).delete().eq(keyOf(t), id).select());
     if (!rows.length) throw denied();
   },
+
+  async rpc(fn, args) { return check(await sb.rpc(fn, args)); },
 
   async upload(path, file) { check(await sb.storage.from('media').upload(path, file, { upsert: false, contentType: file.type })); return path; },
   async urls(paths) {

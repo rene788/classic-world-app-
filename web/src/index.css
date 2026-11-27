@@ -637,3 +637,62 @@ tr.rij-laat td:first-child{box-shadow:inset 3px 0 0 var(--danger)}
 .wb-dag.los{border-right:2px solid var(--line)}
 .wb-cel.los{border-right:2px solid var(--line)}
 .wb-dag.los{text-transform:none}
+
+/* ---------- Locaties ---------- */
+.lt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;align-items:start}
+@media (max-width:420px){.lt-grid{grid-template-columns:1fr}}
+.lt{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px;min-width:0;min-height:96px;transition:background .12s}
+.lt.ext{border-top:3px solid var(--st-onderweg)}
+.lt.over{background:var(--accent-soft);outline:2px dashed var(--accent);outline-offset:-3px}
+.lt header{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.lt h3{margin:0;font-family:var(--f-display);font-weight:500;font-size:19px}
+.lt header small{font-size:12px;color:var(--muted);white-space:nowrap}
+.lt-bar{height:5px;border-radius:3px;background:var(--surface-2);overflow:hidden;margin-bottom:2px}
+.lt-bar i{display:block;height:100%;background:var(--gold)}
+.lt-bar.vol i{background:var(--danger)}
+.la{display:flex;gap:9px;align-items:center;text-align:left;font:inherit;color:inherit;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:5px 8px 5px 5px;cursor:pointer;width:100%}
+.la[draggable="true"]{cursor:grab}
+.la:hover{border-color:var(--ink)}
+.la.lang{border-color:var(--warn);background:var(--match-soft)}
+.la-t{display:flex;flex-direction:column;min-width:0}
+.la-t b{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.la-t small{font-size:11.5px;color:var(--muted)}
+.la.lang .la-t small{color:var(--warn);font-weight:600}
+.lt-boxen{grid-column:span 2}
+@media (max-width:640px){.lt-boxen{grid-column:auto}}
+.bx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px}
+.bx{border:1px dashed var(--line);border-radius:7px;padding:6px 7px;min-height:62px;display:flex;flex-direction:column;gap:3px;font-size:12px}
+.bx.has{border-style:solid;background:var(--surface-2)}
+.bx.vol{background:var(--match-soft)}
+.bx.over{background:var(--accent-soft);border-color:var(--accent)}
+.bx.dim{opacity:.35}
+.bx-h{display:flex;justify-content:space-between;align-items:center}
+.bx.vol .bx-h b::after{content:' · vol';font-family:var(--f-body);font-size:11px;color:var(--warn)}
+.bx-h b{font-family:var(--f-display);font-weight:500;font-size:16px}
+.bx-a{font-size:12px;display:flex;flex-direction:column;line-height:1.25}
+.bx-a small{font-weight:400;color:var(--muted);font-size:11px}
+.loc-sam{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+.loc-sam span{display:flex;flex-direction:column;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2)}
+.loc-sam small{font-size:11.5px;color:var(--muted)}
+.loc-sam b{font-family:var(--f-display);font-weight:500;font-size:22px}
+.loc-sam em{font-style:normal;font-size:13px;color:var(--muted)}
+.loc-sam .warn{border-color:var(--warn)}
+.lb-nieuw{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2)}
+.lb-nieuw>.in:first-child{flex:1 1 220px}
+.lb-lijst{display:flex;flex-direction:column}
+.lb-r{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 0;border-bottom:1px dashed var(--line)}
+.lb-r:last-child{border-bottom:0}
+.lb-r>.in:nth-child(2){flex:1 1 180px}
+.lb-r .lb-plek{width:86px}
+.lb-r.uit>.in{opacity:.55}
+.lb-pijl{display:flex}
+.lb-n{min-width:56px}
+.la-t b{white-space:normal;overflow-wrap:anywhere;line-height:1.3}
+@media (min-width:641px){.lb-r{display:grid;grid-template-columns:auto minmax(0,1fr) 86px 64px auto 96px}.lb-r>.in:nth-child(2){flex:none}}
+.lt-kop{display:flex;align-items:center;gap:6px;border:0;background:none;padding:0;font:inherit;color:inherit;cursor:pointer;text-align:left;min-width:0}
+.lt-kop:hover h3{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
+.lt-pijl{font-size:12px;color:var(--muted);width:12px}
+.lt.dicht{min-height:0}
+.lt.dicht.lt-boxen{grid-column:auto}
+.lt-meer{align-self:flex-start}
+.vak-kies{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
