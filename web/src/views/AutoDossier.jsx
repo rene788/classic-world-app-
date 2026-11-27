@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useApp, Modal, Sel, Plate, Nr, Status, Loc, DelBtn, Field, useUrls, CarFoto, DocLink } from '../ui';
+import { useApp, Modal, Sel, Plate, Status, Loc, DelBtn, Field, useUrls, DocLink } from '../ui';
 import { werkers, Wie, Deadline, naamVan, VoorstelKaart } from './Planning';
 import {
   STATUSES, PART_ST, KOST_SOORT, ORDER_ST, FASES, BESTEMMING, CHECK_DEFAULT, UITL, carName, fmtD, eur, eur2, km, hrs, sum,
@@ -18,58 +18,92 @@ export default function AutoDossier({ car, onEdit }) {
   const setStatus = (status) => (status === 'geannuleerd' ? setAnnuleer(true) : act((db) => db.update('autos', c.id, { status, ...(c.status === 'geannuleerd' ? { geannuleerd_op: null, annuleer_reden: null } : {}), ...(status === 'verkocht' && !c.verkoopdatum ? { verkoopdatum: today() } : {}), ...(c.status === 'onderweg' && ['binnen', 'werkplaats', 'klaar'].includes(status) ? { datum_binnen: today() } : {}) }), 'Status bijgewerkt', ['autos']));
   const del = async () => { if (await act((db) => db.remove('autos', c.id), 'Auto verwijderd', ['autos'])) setNav((n) => ({ ...n, carId: null })); };
 
+  const [tab, setTab] = useState('overzicht');
+  useEffect(() => { setTab('overzicht'); }, [c.id]);
+  const prijs = geld ? d.prijsOf(c) : klant?.prijs ? d.prijsOf(c) : null;
+  const openTaken = d.taken.filter((t) => t.auto_id === c.id && !t.klaar).length;
+  const fin = d.finByAuto[c.id] || {};
+  const tabs = [
+    ['overzicht', 'Overzicht'],
+    ['werkplaats', 'Werkplaats', openTaken || null],
+    ['fotos', "Foto's en documenten"],
+    ...(geld ? [['kosten', isCons(c) ? 'Consignatie en kosten' : 'Kosten en marge'], ['verkoop', 'Verkoop en aflevering']] : []),
+  ];
+
   return (
-    <div className="detail">
-      <div>
-        <button className="btn ghost sm back" onClick={() => setNav((n) => ({ ...n, carId: null }))}>← Terug naar lijst</button>
-        <div className="d-head">
-          <ProfielFoto c={c} />
-          <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-            <h2 className="d-title">{carName(c)}{c.bouwjaar ? `, ${c.bouwjaar}` : ''}</h2>
-            <div className="d-sub"><Nr c={c} lg />{!klant && isCons(c) && <span className="chip cons">Consignatie</span>}<Plate c={c} lg /><Status s={c.status} /><Loc c={c} /></div>
-            {!klant && (c.toegewezen_aan || geld) && (
-              <div className="d-wie"><span className="note">Hele auto:</span>
-                {geld ? <Wie d={d} t={{ ...c, tekst: carName(c) }} onWijzig={(id) => act((db) => db.update('autos', c.id, { toegewezen_aan: id }), id ? `Hele auto voor ${naamVan(d, id)}` : 'Niemand meer verantwoordelijk', ['autos'])} />
-                  : <Wie d={d} t={c} />}
-              </div>
-            )}
-            <DocLink c={c} edit={geld} />
-          </div>
-          <div className="d-actions">
-            {geld && <Sel value={c.status} onChange={setStatus} options={STATUSES} aria-label="Status wijzigen" />}
-            {geld && <button className="btn" onClick={onEdit}>Wijzigen</button>}
-            {beheerder && <DelBtn onConfirm={del} label="Verwijderen" />}
-          </div>
+    <div className="detail dossier">
+      <button className="btn ghost sm back" onClick={() => setNav((n) => ({ ...n, carId: null }))}>← Terug naar lijst</button>
+      <Hero c={c}>
+        <div className="eyebrow">{[c.voorraadnr && `#${c.voorraadnr}`, !klant && isCons(c) && 'Consignatie', c.bouwjaar].filter(Boolean).join(' · ') || 'Zonder voorraadnummer'}</div>
+        <h2 className="d-title">{carName(c)}</h2>
+        <dl className="hero-meta">
+          <div><dt>Status</dt><dd><Status s={c.status} /></dd></div>
+          {c.kenteken && <div><dt>Kenteken</dt><dd><Plate c={c} /></dd></div>}
+          {c.locatie && <div><dt>Locatie</dt><dd><Loc c={c} /></dd></div>}
+          {prijs != null && <div><dt>Vraagprijs</dt><dd className="num">{geld ? eur(prijs) : eurVrij(prijs)}</dd></div>}
+          {!klant && opVoorraad(c) && c.status !== 'onderweg' && dg != null && <div><dt>Op voorraad</dt><dd className="num">{dg} dagen</dd></div>}
+          {!klant && (c.toegewezen_aan || geld) && (
+            <div><dt>Hele auto</dt><dd>
+              {geld ? <Wie d={d} t={{ ...c, tekst: carName(c) }} onWijzig={(id) => act((db) => db.update('autos', c.id, { toegewezen_aan: id }), id ? `Hele auto voor ${naamVan(d, id)}` : 'Niemand meer verantwoordelijk', ['autos'])} />
+                : <Wie d={d} t={c} />}
+            </dd></div>
+          )}
+        </dl>
+        <div className="hero-acties">
+          {geld && <Sel value={c.status} onChange={setStatus} options={STATUSES} aria-label="Status wijzigen" />}
+          {geld && <button className="btn" onClick={onEdit}>Wijzigen</button>}
+          <DocLink c={c} edit={geld} />
+          {beheerder && <DelBtn onConfirm={del} label="Verwijderen" />}
         </div>
+      </Hero>
+
+      <div className="d-tabs" role="tablist" aria-label="Onderdelen van het dossier">
+        {tabs.map(([k, l, n]) => (
+          <button key={k} className="d-tab" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>{l}{n != null && <span className="count num">{n}</span>}</button>
+        ))}
       </div>
 
-      <dl className="facts">
-        <Fact k="Chassisnummer" v={c.chassisnr} mono />
-        <Fact k="Kilometerstand" v={km(c.km)} />
-        <Fact k="Kleur" v={c.kleur} />
-        {c.status === 'onderweg'
-          ? <Fact k="Onderweg" v={c.locatie_info || 'nog niet binnen'} />
-          : !klant && <Fact k="Binnen sinds" v={c.datum_binnen ? `${fmtD(c.datum_binnen)}${opVoorraad(c) && dg != null ? ` (${dg} d)` : ''}` : ''} />}
-        {c.verkoopdatum && <Fact k="Verkocht op" v={fmtD(c.verkoopdatum)} />}
-        {geld && isCons(c) && <Fact k="Eigenaar" v={d.klanten.find((x) => x.id === d.finByAuto[c.id]?.cons_eigenaar)?.naam || 'nog niet ingevuld'} />}
-        {geld && isCons(c) && d.finByAuto[c.id]?.cons_tot && <Fact k="Consignatie tot" v={fmtD(d.finByAuto[c.id].cons_tot)} />}
-        {c.status === 'geannuleerd' && <Fact k="Aankoop geannuleerd" v={`${c.geannuleerd_op ? fmtD(c.geannuleerd_op) : 'datum onbekend'}${c.annuleer_reden ? ` · ${c.annuleer_reden}` : ''}`} />}
-        {geld && <Fact k="Vraagprijs" v={eur(d.prijsOf(c))} />}
-        {klant?.prijs && <Fact k="Vraagprijs" v={d.prijsOf(c) != null ? eurVrij(d.prijsOf(c)) : 'Op aanvraag'} />}
-        {c.bestemming && <Fact k="Bestemming" v={Object.fromEntries(BESTEMMING)[c.bestemming]} />}
-      </dl>
-      {c.omschrijving && !klant && <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{c.omschrijving}</p>}
-      {c.status === 'geannuleerd' && <div className="banner warn" style={{ margin: 0 }}>Deze aankoop is geannuleerd. De auto telt niet meer mee in de voorraad, de voorraadwaarde of de matches. De bedragen staan op het overzicht bij "Geannuleerde aankopen".</div>}
+      {tab === 'overzicht' && (
+        <div className="d-grid">
+          <div className="stack">
+            {c.status === 'geannuleerd' && <div className="banner warn" style={{ margin: 0 }}>Deze aankoop is geannuleerd. De auto telt niet meer mee in de voorraad, de voorraadwaarde of de matches. De bedragen staan op het dashboard bij "Geannuleerde aankopen".</div>}
+            {!klant && (
+              <section className="sec">
+                <h3>Wat je moet weten</h3>
+                {c.omschrijving ? <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{c.omschrijving}</p> : <p className="note" style={{ margin: 0 }}>Nog geen omschrijving.{geld ? ' Vul die in via Wijzigen.' : ''}</p>}
+              </section>
+            )}
+            {geld && <MatchesSec c={c} />}
+            <Taken c={c} />
+          </div>
+          <aside className="gegevens">
+            <h3>Gegevens</h3>
+            <dl>
+              <Fact k="Merk" v={c.merk} />
+              <Fact k="Model" v={[c.model, c.type].filter(Boolean).join(' ')} />
+              <Fact k="Bouwjaar" v={c.bouwjaar} />
+              <Fact k="Kleur" v={c.kleur} />
+              <Fact k="Kilometerstand" v={km(c.km)} />
+              <Fact k="Kenteken" v={c.kenteken} />
+              <Fact k="Chassisnummer" v={c.chassisnr} mono />
+              {c.status === 'onderweg'
+                ? <Fact k="Onderweg" v={c.locatie_info || 'nog niet binnen'} />
+                : !klant && <Fact k="Binnen sinds" v={c.datum_binnen ? fmtD(c.datum_binnen) : ''} />}
+              {c.verkoopdatum && <Fact k="Verkocht op" v={fmtD(c.verkoopdatum)} />}
+              {geld && isCons(c) && <Fact k="Eigenaar" v={d.klanten.find((x) => x.id === fin.cons_eigenaar)?.naam || 'nog niet ingevuld'} />}
+              {geld && isCons(c) && fin.cons_tot && <Fact k="Consignatie tot" v={fmtD(fin.cons_tot)} />}
+              {c.status === 'geannuleerd' && <Fact k="Aankoop geannuleerd" v={`${c.geannuleerd_op ? fmtD(c.geannuleerd_op) : 'datum onbekend'}${c.annuleer_reden ? ` · ${c.annuleer_reden}` : ''}`} />}
+              {c.bestemming && <Fact k="Bestemming" v={Object.fromEntries(BESTEMMING)[c.bestemming]} />}
+              {klant?.prijs && <Fact k="Vraagprijs" v={d.prijsOf(c) != null ? eurVrij(d.prijsOf(c)) : 'Op aanvraag'} />}
+            </dl>
+          </aside>
+        </div>
+      )}
+      {tab === 'werkplaats' && <div className="stack"><Taken c={c} /><Onderdelen c={c} /><UrenSec c={c} /></div>}
+      {tab === 'fotos' && <Media c={c} />}
+      {tab === 'kosten' && geld && <Financien c={c} />}
+      {tab === 'verkoop' && geld && <div className="stack"><Afleverlijst c={c} /><Contacten c={c} /></div>}
       {annuleer && <AnnuleerForm c={c} onClose={() => setAnnuleer(false)} />}
-
-      {geld && <MatchesSec c={c} />}
-      <Taken c={c} />
-      <Onderdelen c={c} />
-      <UrenSec c={c} />
-      <Media c={c} />
-      {geld && <Financien c={c} />}
-      {geld && <Afleverlijst c={c} />}
-      {geld && <Contacten c={c} />}
     </div>
   );
 }
@@ -95,7 +129,8 @@ function AnnuleerForm({ c, onClose }) {
   );
 }
 
-function ProfielFoto({ c }) {
+// Grote foto bovenaan het dossier, met daaroverheen een kaartje met de belangrijkste gegevens
+function Hero({ c, children }) {
   const { act, geld } = useApp();
   const urls = useUrls([c.foto]);
   const [busy, setBusy] = useState(false);
@@ -104,7 +139,7 @@ function ProfielFoto({ c }) {
     setBusy(true);
     const oud = c.foto;
     const ok = await act(async (db) => {
-      const klein = await thumb(file);
+      const klein = await thumb(file, 1280);
       const pad = `${c.id}/profiel/${rid().slice(0, 8)}.jpg`;
       await db.upload(pad, klein);
       await db.update('autos', c.id, { foto: pad });
@@ -114,17 +149,19 @@ function ProfielFoto({ c }) {
   };
   const weg = () => act(async (db) => { await db.update('autos', c.id, { foto: null }); try { await db.removeFile(c.foto); } catch { /* mag blijven staan */ } }, 'Profielfoto verwijderd', ['autos']);
   return (
-    <div className="pfoto">
-      <CarFoto c={c} url={urls[c.foto]} lg />
+    <section className="hero">
+      {urls[c.foto] ? <img className="hero-img" src={urls[c.foto]} alt={`Foto ${carName(c)}`} />
+        : <div className="hero-leeg"><svg viewBox="0 0 24 24" width="72" height="72" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 15l2-5a2 2 0 0 1 2-1.4h10A2 2 0 0 1 19 10l2 5v3h-2.5M5.5 18H3v-3m5.5 3h7" /><circle cx="7" cy="18" r="1.6" /><circle cx="17" cy="18" r="1.6" /></svg></div>}
       {geld && (
-        <div className="pfoto-k">
+        <div className="hero-foto pfoto-k">
           <label className="btn sm filebtn">{busy ? 'Bezig…' : c.foto ? 'Andere foto' : '+ Profielfoto'}
             <input type="file" accept="image/*" disabled={busy} onChange={(e) => { kies(e.target.files[0]); e.target.value = ''; }} />
           </label>
           {c.foto && !busy && <DelBtn x label="Profielfoto verwijderen" onConfirm={weg} />}
         </div>
       )}
-    </div>
+      <div className="hero-kaart">{children}</div>
+    </section>
   );
 }
 

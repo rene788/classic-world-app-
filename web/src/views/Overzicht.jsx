@@ -82,7 +82,7 @@ export default function Overzicht() {
 
   const Kpi = ({ k, l, v, s: sub }) => (
     <button className="kpi" onClick={() => setKpi(k)} aria-haspopup="dialog">
-      <span className="kpi-l">{l}</span><span className="kpi-v num">{v}</span><small>{sub}</small><span className="kpi-m" aria-hidden="true">Bekijk ›</span>
+      <span className="kpi-l"><KpiIcoon k={k} />{l}</span><span className="kpi-v num">{v}</span><small>{sub}</small><span className="kpi-m" aria-hidden="true">Bekijk ›</span>
     </button>
   );
 
@@ -169,4 +169,17 @@ export default function Overzicht() {
       )}
     </div>
   );
+}
+
+const KPI_IC = {
+  voorraad: <><path d="M3 15l2-5a2 2 0 0 1 2-1.4h10A2 2 0 0 1 19 10l2 5v3h-2.5M5.5 18H3v-3m5.5 3h7" /><circle cx="7" cy="18" r="1.6" /><circle cx="17" cy="18" r="1.6" /></>,
+  waarde: <><path d="M4 7h16v12H4z" /><path d="M4 11h16M8 15h3" /></>,
+  investering: <><path d="M3 17l6-6 4 4 8-8" /><path d="M15 7h6v6" /></>,
+  marge: <><path d="M5 19L19 5" /><circle cx="7" cy="7" r="2.5" /><circle cx="17" cy="17" r="2.5" /></>,
+  verkocht: <><path d="M20 12l-8 8-9-9V3h8z" /><circle cx="7.5" cy="7.5" r="1.5" /></>,
+  consignatie: <><path d="M7 11V7a5 5 0 0 1 10 0v4" /><rect x="4" y="11" width="16" height="10" rx="2" /></>,
+  uren: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
+};
+function KpiIcoon({ k }) {
+  return <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{KPI_IC[k]}</svg>;
 }
