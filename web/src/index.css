@@ -696,3 +696,14 @@ tr.rij-laat td:first-child{box-shadow:inset 3px 0 0 var(--danger)}
 .lt.dicht.lt-boxen{grid-column:auto}
 .lt-meer{align-self:flex-start}
 .vak-kies{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+
+/* ---------- Geïnteresseerd: e-mailadressen verzamelen ---------- */
+.gi-acties{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 8px}
+a.btn{text-decoration:none;display:inline-flex;align-items:center}
+a.btn.uit{opacity:.5;pointer-events:none}
+label.m-item.gi{cursor:pointer;align-items:center}
+.m-item.gi>input{flex:none;width:17px;height:17px;accent-color:var(--accent)}
+.m-item.gi.uit .m-who{opacity:.5}
+.gi-kop{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;padding:10px 0 4px}
+.gi-erbij{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.gi-erbij select{flex:1 1 220px}

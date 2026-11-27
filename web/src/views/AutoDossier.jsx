@@ -167,32 +167,111 @@ function Hero({ c, children }) {
 
 const Fact = ({ k, v, mono }) => <div className="fact"><dt>{k}</dt><dd className={mono ? 'mono' : undefined}>{v || '—'}</dd></div>;
 
+// Geïnteresseerde klanten voor deze auto: matches op zoekwens + klanten die bij deze auto interesse hebben getoond.
+// Hiermee verzamel je in één keer de e-mailadressen om iedereen (in BCC) te mailen.
+const INTERESSE = ['interesse', 'komt-kijken', 'proefrit', 'bod', 'geinformeerd'];
+const AFGEHAAKT = ['geen-interesse', 'gekocht'];
+
+export function geinteresseerden(d, c) {
+  const per = new Map();
+  const laatste = {};
+  d.contactmomenten.filter((x) => x.auto_id === c.id).sort((a, b) => (a.datum || '').localeCompare(b.datum || '') || (a.aangemaakt || '').localeCompare(b.aangemaakt || ''))
+    .forEach((x) => { laatste[x.klant_id] = x; });
+  const informed = new Set(Object.values(laatste).filter((x) => x.uitkomst === 'geinformeerd').map((x) => x.klant_id));
+  d.contactmomenten.filter((x) => x.auto_id === c.id && x.uitkomst === 'geinformeerd').forEach((x) => informed.add(x.klant_id));
+  for (const m of d.matchesForCar(c)) per.set(m.klant.id, { k: m.klant, zoekt: m.wish, over: m.over, informed: m.informed });
+  for (const [kid, x] of Object.entries(laatste)) {
+    const k = d.klanten.find((y) => y.id === kid);
+    if (!k) continue;
+    if (AFGEHAAKT.includes(x.uitkomst)) { per.delete(kid); continue; }
+    if (!INTERESSE.includes(x.uitkomst) && !per.has(kid)) continue;
+    per.set(kid, { ...(per.get(kid) || { k }), contact: x, informed: informed.has(kid) });
+  }
+  return [...per.values()].sort((a, b) => (a.informed - b.informed) || a.k.naam.localeCompare(b.k.naam, 'nl'));
+}
+const geldigMail = (e) => /^[^\s@;,<>]+@[^\s@;,<>]+\.[^\s@;,<>]+$/.test(String(e || '').trim());
+
 function MatchesSec({ c }) {
-  const { d, act, openKlant } = useApp();
-  const ms = d.matchesForCar(c);
+  const { d, act, openKlant, me } = useApp();
+  const lijst = geinteresseerden(d, c);
   // Verbergen wordt per apparaat onthouden en geldt voor alle auto's
   const [verborgen, setVerborgenRaw] = useState(() => { try { return localStorage.getItem('matches-verborgen') === '1'; } catch { return false; } });
   const setVerborgen = (v) => { setVerborgenRaw(v); try { localStorage.setItem('matches-verborgen', v ? '1' : '0'); } catch { /* geen opslag */ } };
-  if (!ms.length || !opVoorraad(c)) return null;
-  const open = ms.filter((m) => !m.informed).length;
+  const [uit, setUit] = useState(() => new Set()); // klanten die je uitvinkt
+  const [erbij, setErbij] = useState('');
+  const [gekopieerd, setGekopieerd] = useState(false);
+  if (!opVoorraad(c)) return null;
+  const metMail = lijst.filter((x) => geldigMail(x.k.email));
+  const zonderMail = lijst.filter((x) => !geldigMail(x.k.email));
+  const gekozen = metMail.filter((x) => !uit.has(x.k.id));
+  const adressen = [...new Set(gekozen.map((x) => x.k.email.trim().toLowerCase()))];
+  const open = lijst.filter((x) => !x.informed).length;
+  const wissel = (id) => setUit((u) => { const n = new Set(u); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const inform = (k) => act((db) => db.insert('contactmomenten', { klant_id: k.id, auto_id: c.id, uitkomst: 'geinformeerd', datum: today() }), 'Gemarkeerd als geïnformeerd', ['contactmomenten']);
+  const allenInformeren = () => act(async (db) => {
+    for (const x of gekozen.filter((y) => !y.informed)) await db.insert('contactmomenten', { klant_id: x.k.id, auto_id: c.id, uitkomst: 'geinformeerd', kanaal: 'E-mail', datum: today() });
+  }, `${gekozen.filter((y) => !y.informed).length} klant(en) gemarkeerd als geïnformeerd`, ['contactmomenten']);
+  const voegToe = () => { if (!erbij) return; act((db) => db.insert('contactmomenten', { klant_id: erbij, auto_id: c.id, uitkomst: 'interesse', datum: today() }), 'Toegevoegd aan geïnteresseerden', ['contactmomenten']).then((ok) => ok && setErbij('')); };
+  const tekst = adressen.join('; ');
+  const kopieer = async () => {
+    try { await navigator.clipboard.writeText(tekst); setGekopieerd(true); setTimeout(() => setGekopieerd(false), 2500); }
+    catch { const t = document.getElementById(`bcc-${c.id}`); if (t) { t.hidden = false; t.select(); } }
+  };
+  const onderwerp = `${[c.merk, c.model, c.type].filter(Boolean).join(' ')}${c.bouwjaar ? ` (${c.bouwjaar})` : ''} · Classics World`;
+  // Eigen adres bij Aan, klanten alleen in BCC: ze zien elkaars adres niet
+  const mailto = `mailto:${encodeURIComponent(me?.email || '')}?bcc=${encodeURIComponent(adressen.join(','))}&subject=${encodeURIComponent(onderwerp)}`;
+  const teLang = mailto.length > 1900;
+  const anderen = d.klanten.filter((k) => !lijst.some((x) => x.k.id === k.id)).sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
+  const waarom = (x) => [x.zoekt && `zoekt ${wishText(x.zoekt)}${x.over ? ' (iets boven budget)' : ''}`, x.contact && `${UITL[x.contact.uitkomst] || 'contact'} · ${fmtD(x.contact.datum)}`].filter(Boolean).join(' · ');
+
   return (
     <section className="sec">
-      <h3 className="sec-h">Klanten die dit zoeken <span className="aux">{open ? `${open} nog te informeren` : 'iedereen geïnformeerd'}</span>
-        <button className="btn ghost sm" aria-expanded={!verborgen} onClick={() => setVerborgen(!verborgen)}>{verborgen ? `Toon (${ms.length})` : 'Verbergen'}</button>
+      <h3 className="sec-h">Geïnteresseerd <span className="aux">{lijst.length ? `${lijst.length} klant${lijst.length === 1 ? '' : 'en'}${open ? ` · ${open} nog te informeren` : ' · iedereen geïnformeerd'}` : 'nog niemand'}</span>
+        {lijst.length > 0 && <button className="btn ghost sm" aria-expanded={!verborgen} onClick={() => setVerborgen(!verborgen)}>{verborgen ? `Toon (${lijst.length})` : 'Verbergen'}</button>}
       </h3>
-      {!verborgen && <div className="matchbox">
-        {ms.map((m) => (
-          <div key={m.klant.id} className="m-item">
-            <div className="m-who">
-              <button className="linkish" onClick={() => openKlant(m.klant.id)}>{m.klant.naam}</button>
-              <div className="m-wish">Zoekt: {wishText(m.wish)}{m.over ? ' · vraagprijs iets boven budget' : ''}</div>
-              <div className="m-wish">{[m.klant.telefoon, m.klant.email].filter(Boolean).join(' · ')}</div>
-            </div>
-            {m.informed ? <span className="chip ok">Geïnformeerd</span> : <button className="btn sm" onClick={() => inform(m.klant)}>Geïnformeerd</button>}
+      {!verborgen && <>
+        {metMail.length > 0 && (
+          <div className="gi-acties">
+            <button className="btn primary" onClick={kopieer} disabled={!adressen.length}>{gekopieerd ? '✓ Gekopieerd' : `Kopieer e-mailadressen (${adressen.length})`}</button>
+            {teLang ? <span className="note">Te veel adressen voor één mail-knop: kopieer ze en plak ze in BCC.</span>
+              : <a className={`btn${adressen.length ? '' : ' uit'}`} href={adressen.length ? mailto : undefined}>Nieuwe mail (BCC)</a>}
+            <button className="btn ghost" onClick={allenInformeren} disabled={!gekozen.some((y) => !y.informed)}>Aangevinkte op geïnformeerd</button>
           </div>
-        ))}
-      </div>}
+        )}
+        <textarea id={`bcc-${c.id}`} className="in mono" hidden readOnly rows={2} value={tekst} aria-label="E-mailadressen" />
+        {metMail.length > 0 && <p className="note" style={{ margin: '0 0 8px' }}>Plak de adressen altijd in <b>BCC</b>, nooit bij Aan of CC. Dan zien klanten elkaars adres niet.</p>}
+        <div className="matchbox">
+          {metMail.map((x) => (
+            <label key={x.k.id} className={`m-item gi${uit.has(x.k.id) ? ' uit' : ''}`}>
+              <input type="checkbox" checked={!uit.has(x.k.id)} onChange={() => wissel(x.k.id)} aria-label={`${x.k.naam} meenemen in de mail`} />
+              <div className="m-who">
+                <button type="button" className="linkish" onClick={() => openKlant(x.k.id)}>{x.k.naam}</button>
+                <div className="m-wish">{waarom(x)}</div>
+                <div className="m-wish mono">{x.k.email}</div>
+              </div>
+              {x.informed ? <span className="chip ok">Geïnformeerd</span> : <button type="button" className="btn sm" onClick={(e) => { e.preventDefault(); inform(x.k); }}>Geïnformeerd</button>}
+            </label>
+          ))}
+          {zonderMail.length > 0 && <div className="gi-kop">Geen e-mailadres, even bellen</div>}
+          {zonderMail.map((x) => (
+            <div key={x.k.id} className="m-item">
+              <div className="m-who">
+                <button className="linkish" onClick={() => openKlant(x.k.id)}>{x.k.naam}</button>
+                <div className="m-wish">{waarom(x)}</div>
+                <div className="m-wish">{x.k.telefoon || 'geen telefoonnummer'}{x.k.email && !geldigMail(x.k.email) ? ` · e-mailadres klopt niet: ${x.k.email}` : ''}</div>
+              </div>
+              {x.informed ? <span className="chip ok">Geïnformeerd</span> : <button className="btn sm" onClick={() => inform(x.k)}>Geïnformeerd</button>}
+            </div>
+          ))}
+          {!lijst.length && <p className="note" style={{ margin: 0 }}>Nog geen klanten met interesse in deze auto. Klanten met een passende zoekwens verschijnen hier vanzelf.</p>}
+        </div>
+        {anderen.length > 0 && (
+          <div className="gi-erbij">
+            <Sel value={erbij} onChange={setErbij} options={anderen.map((k) => [k.id, k.naam + (k.email ? '' : ' (geen e-mail)')])} empty="Klant toevoegen die interesse heeft…" aria-label="Klant toevoegen" />
+            <button className="btn sm" disabled={!erbij} onClick={voegToe}>Toevoegen</button>
+          </div>
+        )}
+      </>}
     </section>
   );
 }
